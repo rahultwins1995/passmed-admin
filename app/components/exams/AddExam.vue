@@ -614,6 +614,39 @@ const toggleAssociated = (q: any) => {
   }
 }
 
+// Bulk associate / clear ALL questions of the selected source exam (one click).
+const bulkAssocLoading = ref(false)
+const fetchSourceIds = async (): Promise<number[]> => {
+  const res: any = await $api.post('/exams/assign-questions/0', {
+    source_exam_id: sourceExamId.value, all_source_ids: 1,
+  })
+  return (res?.data?.all_ids || []).map((x: any) => Number(x))
+}
+const addAllFromSource = async () => {
+  if (!sourceExamId.value) return
+  bulkAssocLoading.value = true
+  try {
+    const ids = await fetchSourceIds()
+    let added = 0
+    for (const id of ids) {
+      if (!addExamModel.associated_with.includes(id)) { addExamModel.associated_with.push(id); added++ }
+    }
+    $toast(`${added} question(s) added from this exam`)
+  } catch { $toast('Could not add questions', 'error') }
+  finally { bulkAssocLoading.value = false }
+}
+const clearAllFromSource = async () => {
+  if (!sourceExamId.value) return
+  bulkAssocLoading.value = true
+  try {
+    const ids = await fetchSourceIds()
+    addExamModel.associated_with = addExamModel.associated_with.filter((x: number) => !ids.includes(x))
+    associatedQuestions.value = associatedQuestions.value.filter((q: any) => !ids.includes(Number(q.id)))
+    $toast('Removed this exam\'s questions')
+  } catch { $toast('Could not clear', 'error') }
+  finally { bulkAssocLoading.value = false }
+}
+
 watch(sourceExamId, () => { pageQcurrent.value = 1; fetchQuestionsData() })
 
 onMounted(() => {
@@ -1007,6 +1040,14 @@ class="overlay open"  id="examEditorOverlay"
                     <option :value="null">This exam's questions</option>
                     <option v-for="ex in examOptions" :key="ex.id" :value="Number(ex.id)">{{ ex.name }} ({{ ex.total_question ?? 0 }})</option>
                   </select>
+                  <button v-if="sourceExamId" type="button" class="btn btn-primary btn-sm" style="font-size:0.72rem;padding:5px 9px;white-space:nowrap"
+                    :disabled="bulkAssocLoading" @click="addAllFromSource">
+                    {{ bulkAssocLoading ? 'Adding…' : 'Add all from this exam' }}
+                  </button>
+                  <button v-if="sourceExamId" type="button" class="btn btn-outline btn-sm" style="font-size:0.72rem;padding:5px 9px;white-space:nowrap"
+                    :disabled="bulkAssocLoading" @click="clearAllFromSource">
+                    Clear this exam
+                  </button>
                 </div>
 
                 </div>
