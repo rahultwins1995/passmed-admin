@@ -207,9 +207,16 @@ const addAllFromSource = async () => {
   bulkAssocLoading.value = true
   try {
     const ids = await fetchSourceIds()
+    const srcName = examOptions.value.find((e: any) => Number(e.id) === Number(sourceExamId.value))?.name || 'Exam'
     let added = 0
     for (const id of ids) {
-      if (!associatedIds.value.includes(id)) { associatedIds.value.push(id); added++ }
+      if (!associatedIds.value.includes(id)) {
+        associatedIds.value.push(id)
+        // Also add a lightweight display object so the "added from other exams"
+        // summary shows it immediately (all these questions belong to the source exam).
+        associatedQuestions.value.push({ id, exam_id: Number(sourceExamId.value), exam_name: srcName, is_associated: true })
+        added++
+      }
     }
     $toast(`${added} question(s) added from this exam`)
   } catch { $toast('Could not add questions', 'error') }
@@ -225,6 +232,28 @@ const clearAllFromSource = async () => {
     $toast('Removed this exam\'s questions')
   } catch { $toast('Could not clear', 'error') }
   finally { bulkAssocLoading.value = false }
+}
+
+// Associated (referenced) questions grouped by their SOURCE exam — drives the
+// "added from other exams" summary so the admin sees what was added (incl. bulk)
+// and can remove all of a given exam's questions if added by mistake.
+const associatedByExam = computed(() => {
+  const map: any = {}
+  for (const q of associatedQuestions.value) {
+    const key = (q.exam_id != null && q.exam_id !== '') ? 'e' + Number(q.exam_id) : 'n:' + (q.exam_name || 'Other exam')
+    if (!map[key]) map[key] = { exam_id: q.exam_id ?? null, exam_name: q.exam_name || 'Other exam', count: 0 }
+    map[key].count++
+  }
+  return Object.values(map)
+})
+// Remove EVERY associated question that came from a given exam (undo a mistaken add).
+const removeAssocByExam = (grp: any) => {
+  const rmIds = associatedQuestions.value
+    .filter((q: any) => (grp.exam_id != null ? Number(q.exam_id) === Number(grp.exam_id) : (q.exam_name || 'Other exam') === grp.exam_name))
+    .map((q: any) => Number(q.id))
+  associatedIds.value = associatedIds.value.filter((x: number) => !rmIds.includes(x))
+  associatedQuestions.value = associatedQuestions.value.filter((q: any) => !rmIds.includes(Number(q.id)))
+  $toast(`Removed ${rmIds.length} question(s) from ${grp.exam_name}`)
 }
 
 // Own question (exam_marks) toggle — used when viewing THIS exam's own questions.
@@ -1448,8 +1477,8 @@ onMounted(async () => {
 
                 <div style="max-height:320px;overflow-y:auto;padding-right:4px">
 
-                  <div v-if="dataQuestionsloading || getQuestionsDataList.length === 0">
-                    <Empty v-if="!dataQuestionsloading && getQuestionsDataList.length === 0" />
+                  <div v-if="dataQuestionsloading || (getQuestionsDataList.length === 0 && (sourceExamId || !associatedByExam.length))">
+                    <Empty v-if="!dataQuestionsloading && getQuestionsDataList.length === 0 && (sourceExamId || !associatedByExam.length)" />
                     <Loader_small v-else />
                   </div>
 
@@ -1460,18 +1489,19 @@ onMounted(async () => {
                     <!-- ASSOCIATED (referenced from other exams) — right after this
                          exam's CHECKED questions, on the default view (page 1). -->
                     <template v-if="row.assoc">
-                      <div v-for="(aq, aky) in associatedQuestions" :key="`aq-${aq?.id}`" class="q-assign-row assigned">
-                        <span>A{{ aky+1 }}</span>
-                        <span>
-                        <input class="q-assign-check" type="checkbox"
-                        :checked="associatedQuestionIds.includes(Number(aq.id))"
-                        @change="toggleAssociated(aq)" />
-                        </span>
-                        <span>Q#{{ aq.qid??'-' }}</span>
-                        <div class="q-assign-text" v-html="safeHtmlContent(aq.question_stem)"></div>
-                        <div class="q-assign-meta">
-                        <span class="badge badge-teal" style="font-size:0.63rem">Associated: {{ aq.exam_name }}</span>
-                        <span v-if="aq.cat_name" class="badge badge-gray" style="font-size:0.63rem">{{ aq.cat_name }}</span>
+                      <!-- Associated questions summarised per source exam (see all that
+                           was added, incl. bulk, and remove a whole exam's if mistaken).
+                           Per-question control stays via the source-exam picker above. -->
+                      <div v-if="associatedByExam.length" class="assoc-summary"
+                        style="border:1.5px solid var(--teal-border,#5eead4);background:var(--teal-pale,#f0feff);border-radius:8px;padding:10px 12px;margin:6px 0">
+                        <div style="font-size:0.78rem;font-weight:800;color:var(--ink);margin-bottom:6px">Added from other exams ({{ associatedQuestionIds.length }})</div>
+                        <div v-for="grp in associatedByExam" :key="'ae-'+(grp.exam_id ?? grp.exam_name)"
+                          style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px dashed var(--border)">
+                          <span style="font-size:0.78rem;color:var(--ink)">
+                            <span class="badge badge-teal" style="font-size:0.63rem">{{ grp.exam_name }}</span>
+                            {{ grp.count }} question{{ grp.count === 1 ? '' : 's' }}
+                          </span>
+                          <button type="button" class="card-action" style="color:#dc2626;font-weight:700;font-size:0.74rem" @click="removeAssocByExam(grp)">Remove all</button>
                         </div>
                       </div>
                     </template>
