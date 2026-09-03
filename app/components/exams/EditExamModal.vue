@@ -246,6 +246,12 @@ const associatedByExam = computed(() => {
   }
   return Object.values(map)
 })
+// Does the currently-selected source exam have any associated questions in THIS
+// exam? Drives whether "Clear this exam" is worth showing (hidden when nothing of
+// that exam is included).
+const sourceHasAssociated = computed(() =>
+  !!sourceExamId.value && associatedQuestions.value.some((q: any) => Number(q.exam_id) === Number(sourceExamId.value)))
+
 // Remove EVERY associated question that came from a given exam (undo a mistaken add).
 const removeAssocByExam = (grp: any) => {
   const rmIds = associatedQuestions.value
@@ -602,7 +608,10 @@ const fetchQuestionsData = async () => {
         // Displayed total = own questions + associated (referenced) on the default
         // view, so the exam's effective question count shows (e.g. 3340 + 7 = 3347).
         // Page count stays based on OWN only (associated render as a fixed block).
-        totalQdata.value = obj.total + (!sourceExamId.value ? associatedIds.value.length : 0)
+        // Pagination reflects OWN questions only — associated (referenced) questions
+        // are shown as a separate grouped summary, not paginated inline, so counting
+        // them here made "Showing 1–N of N" misleading (e.g. 6710 with 0 rows).
+        totalQdata.value = obj.total
         totalQPages.value = Math.ceil(obj.total / obj.limit)
 
         if (!examOptions.value.length) loadExamOptions()
@@ -1453,7 +1462,7 @@ onMounted(async () => {
                         </select>
                         </div>
                       </div>
-                      <div style="display:flex;gap:8px;align-items:center">
+                      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                           <input class="filter-input"
                           placeholder="Filter questions..."
                           style="font-size:0.78rem;padding:5px 10px"
@@ -1468,7 +1477,7 @@ onMounted(async () => {
                             :disabled="bulkAssocLoading" @click="addAllFromSource">
                             {{ bulkAssocLoading ? 'Adding…' : 'Add all from this exam' }}
                           </button>
-                          <button v-if="sourceExamId" type="button" class="btn btn-outline btn-sm" style="font-size:0.72rem;padding:5px 9px;white-space:nowrap"
+                          <button v-if="sourceExamId && sourceHasAssociated" type="button" class="btn btn-outline btn-sm" style="font-size:0.72rem;padding:5px 9px;white-space:nowrap"
                             :disabled="bulkAssocLoading" @click="clearAllFromSource">
                             Clear this exam
                           </button>

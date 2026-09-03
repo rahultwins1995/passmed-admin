@@ -686,6 +686,10 @@ const removeAssocByExam = (grp: any) => {
   associatedQuestions.value = associatedQuestions.value.filter((q: any) => !rmIds.includes(Number(q.id)))
   $toast(`Removed ${rmIds.length} question(s) from ${grp.exam_name}`)
 }
+// "Clear this exam" only worth showing when the selected source exam actually has
+// associated questions here.
+const sourceHasAssociated = computed(() =>
+  !!sourceExamId.value && associatedQuestions.value.some((q: any) => Number(q.exam_id) === Number(sourceExamId.value)))
 
 watch(sourceExamId, () => { pageQcurrent.value = 1; fetchQuestionsData() })
 
@@ -1071,7 +1075,7 @@ class="overlay open"  id="examEditorOverlay"
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
                 
 
-                <div style="display:flex;gap:8px;align-items:center">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                   <input class="filter-input" placeholder="Filter questions..."
                   style="font-size:0.78rem;padding:5px 10px" type="text"
                   v-model="filterquestions"
@@ -1084,7 +1088,7 @@ class="overlay open"  id="examEditorOverlay"
                     :disabled="bulkAssocLoading" @click="addAllFromSource">
                     {{ bulkAssocLoading ? 'Adding…' : 'Add all from this exam' }}
                   </button>
-                  <button v-if="sourceExamId" type="button" class="btn btn-outline btn-sm" style="font-size:0.72rem;padding:5px 9px;white-space:nowrap"
+                  <button v-if="sourceExamId && sourceHasAssociated" type="button" class="btn btn-outline btn-sm" style="font-size:0.72rem;padding:5px 9px;white-space:nowrap"
                     :disabled="bulkAssocLoading" @click="clearAllFromSource">
                     Clear this exam
                   </button>
