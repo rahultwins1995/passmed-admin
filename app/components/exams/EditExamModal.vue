@@ -137,21 +137,15 @@ const loadExamOptions = async () => {
 }
 
 // ── Per-month bundle offers ───────────────────────────────────────────────────
-// Each group = one suggested exam + a discount row per month that exam prices.
 const bundleOffers = ref<any[]>([])   // [{ suggested_exam_id, name, months:[{plan, price, discount_type, discount_value}] }]
-
 const fetchPricedMonths = async (examId: number) => {
   try {
     const res: any = await $api.get('/exams/priced-months/' + examId)
     return res?.data?.plans || []
   } catch { return [] }
 }
-const addBundleExam = () => {
-  bundleOffers.value.push({ suggested_exam_id: null, name: '', months: [] })
-}
+const addBundleExam = () => { bundleOffers.value.push({ suggested_exam_id: null, name: '', months: [] }) }
 const removeBundleExam = (idx: number) => { bundleOffers.value.splice(idx, 1) }
-
-// When an exam is picked in a group, load its priced months as discount rows.
 const onBundleExamSelect = async (group: any) => {
   group.months = []
   if (!group.suggested_exam_id) return
@@ -160,7 +154,6 @@ const onBundleExamSelect = async (group: any) => {
   const plans = await fetchPricedMonths(Number(group.suggested_exam_id))
   group.months = plans.map((p: any) => ({ plan: String(p.plan), price: p.price, discount_type: 'percent', discount_value: 0 }))
 }
-
 // Rebuild groups from saved flat offers (edit load): group by exam, fetch months, prefill.
 const loadBundleOffersFromDetail = async (flat: any[]) => {
   bundleOffers.value = []
@@ -183,8 +176,6 @@ const loadBundleOffersFromDetail = async (flat: any[]) => {
   }
   bundleOffers.value = groups
 }
-
-// Flatten for save — only months that actually carry a discount value.
 const bundleOffersPayload = () => {
   const out: any[] = []
   for (const g of bundleOffers.value) {
@@ -203,34 +194,7 @@ const bundleOffersPayload = () => {
   return out
 }
 
-// Own question (exam_marks) toggle — used when viewing THIS exam's own questions.
-const toggleOwn = (qid: number) => {
-  const id = Number(qid)
-  const i = selectedQuestionIds.value.indexOf(id)
-  if (i >= 0) selectedQuestionIds.value.splice(i, 1)
-  else selectedQuestionIds.value.push(id)
-}
-
-// Associated question (associated_with) toggle — used when viewing ANOTHER exam.
-const toggleAssociated = (q: any) => {
-  const id = Number(q.id)
-  const idx = associatedIds.value.indexOf(id)
-  if (idx >= 0) {
-    // remove — from the SAVE id-list AND the display list
-    associatedIds.value.splice(idx, 1)
-    const oi = associatedQuestions.value.findIndex((x: any) => Number(x.id) === id)
-    if (oi >= 0) associatedQuestions.value.splice(oi, 1)
-  } else {
-    // add — to the SAVE id-list AND the display list
-    associatedIds.value.push(id)
-    if (!associatedQuestions.value.some((x: any) => Number(x.id) === id)) {
-      associatedQuestions.value.push({ ...q, is_associated: true })
-    }
-  }
-}
-
-// Bulk associate / clear ALL questions of the selected source exam (one click,
-// bypasses pagination — the backend returns every question id of that exam).
+// Bulk associate / clear ALL questions of the selected source exam (one click).
 const bulkAssocLoading = ref(false)
 const fetchSourceIds = async (): Promise<number[]> => {
   const res: any = await $api.post('/exams/assign-questions/0', {
@@ -261,6 +225,32 @@ const clearAllFromSource = async () => {
     $toast('Removed this exam\'s questions')
   } catch { $toast('Could not clear', 'error') }
   finally { bulkAssocLoading.value = false }
+}
+
+// Own question (exam_marks) toggle — used when viewing THIS exam's own questions.
+const toggleOwn = (qid: number) => {
+  const id = Number(qid)
+  const i = selectedQuestionIds.value.indexOf(id)
+  if (i >= 0) selectedQuestionIds.value.splice(i, 1)
+  else selectedQuestionIds.value.push(id)
+}
+
+// Associated question (associated_with) toggle — used when viewing ANOTHER exam.
+const toggleAssociated = (q: any) => {
+  const id = Number(q.id)
+  const idx = associatedIds.value.indexOf(id)
+  if (idx >= 0) {
+    // remove — from the SAVE id-list AND the display list
+    associatedIds.value.splice(idx, 1)
+    const oi = associatedQuestions.value.findIndex((x: any) => Number(x.id) === id)
+    if (oi >= 0) associatedQuestions.value.splice(oi, 1)
+  } else {
+    // add — to the SAVE id-list AND the display list
+    associatedIds.value.push(id)
+    if (!associatedQuestions.value.some((x: any) => Number(x.id) === id)) {
+      associatedQuestions.value.push({ ...q, is_associated: true })
+    }
+  }
 }
 
 const infinitExamModel ={

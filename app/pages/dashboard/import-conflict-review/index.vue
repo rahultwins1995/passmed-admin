@@ -605,7 +605,7 @@ onMounted(async () => {
                     Reject
                   </button>
 
-                  <button class="btn btn-danger btn-sm"
+                  <button v-if="canEdit('question_bank')" class="btn btn-danger btn-sm"
                     type="button"
                       @click="bulkDelete()"
                     >
@@ -613,7 +613,7 @@ onMounted(async () => {
                     </button>
                   <button class="btn btn-danger btn-sm"
                     type="button"
-                    v-if="total_data > 0"
+                    v-if="total_data > 0 && canEdit('question_bank')"
                     @click="deleteAllConflicts()"
                     title="Delete every conflicting entry matching the current filter (all pages)"
                     >
@@ -783,7 +783,7 @@ onMounted(async () => {
                   type="button">
                     Diff
                   </button>
-                  <template v-if="item.review_status === 'pending'">
+                  <template v-if="item.review_status === 'pending' && canEdit('question_bank')">
                     <button title="Edit question before approving"
                             class="actTdbtn btn btn-outline btn-sm"
                             type="button"

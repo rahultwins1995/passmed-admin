@@ -384,8 +384,8 @@ const formatExamBundle = (exams:any = []) => {
             <p>{{ total_active_licence }} active licences · ${{ total_annual_contract_value }}  total annual contract value</p>
         </div>
         <div class="section-hdr-right">
-            <button class="btn btn-primary btn-sm" 
-            type="button" 
+            <button v-if="canEdit('institutions')" class="btn btn-primary btn-sm"
+            type="button"
             @click="onClickAddModal">
             <svg fill="none" height="13" stroke="currentColor" stroke-linecap="round"
              stroke-width="2.5" viewBox="0 0 24 24" width="13">
@@ -696,12 +696,12 @@ const formatExamBundle = (exams:any = []) => {
                         </td>
 
                         <td style="white-space:nowrap">
-                            <button class="atTdbtn btn btn-outline btn-sm" style="margin-right:4px" 
+                            <button v-if="canEdit('institutions')" class="atTdbtn btn btn-outline btn-sm" style="margin-right:4px"
                             type="button"
                             @click="onClickEditModal(vl.institution_id)">
                             Edit
                             </button>
-                             <button class="atTdbtn btn btn-danger btn-sm"
+                             <button v-if="canEdit('institutions')" class="atTdbtn btn btn-danger btn-sm"
                             @click="confirmDelete(vl.institution_id)"
                             type="button">
                                 Delete

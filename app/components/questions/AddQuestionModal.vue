@@ -444,6 +444,14 @@ const fullLoading=ref<boolean>(false);
 // submit
 const submitQuestion = async (publish = false) => {
 
+  // Stem is a rich-text field — strip tags/entities to detect a visually-empty
+  // editor (e.g. "<p></p>") before hitting the API.
+  const stemText = (addForm.value.question_stem || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+  if (!stemText) {
+    $toast('Question stem is required.', 'error')
+    return
+  }
+
   if(options.value.length === 0){
      $toast('Please add any answer.', 'error')
     return;
@@ -459,7 +467,6 @@ const submitQuestion = async (publish = false) => {
     return
   }
 
-  closeModal();
   fullLoading.value = true;
   const payload = {
     ...addForm.value,
@@ -474,15 +481,19 @@ const submitQuestion = async (publish = false) => {
     if (res.data.status === 'success') {
         fullLoading.value = false;
          $toast("Question is Saved");
-          emit('saved', true); 
+          emit('saved', true);
       // reset
       addForm.value.question_stem = ''
       options.value = [
         { text: '', correct: false },
         { text: '', correct: false }
       ]
+      // Close ONLY after the server confirms — on failure the drawer stays open
+      // with the input intact so the user can fix and retry.
+      closeModal();
 
      }else{
+           fullLoading.value = false;
            $toast('Failed to saved','error');
     }
 

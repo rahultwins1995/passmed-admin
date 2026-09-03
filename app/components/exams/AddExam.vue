@@ -128,6 +128,18 @@ const submitSaveExam = async (updateStatus:number=1) => {
     return;
   }
 
+  // Price sanity before POST: no negative/NaN values, and at least one real plan
+  // (1/3/6/12-month) priced above 0 — an all-zero exam can't be sold.
+  const prices = [addExamModel.price_1, addExamModel.price_2, addExamModel.price_3, addExamModel.price_6, addExamModel.price_12]
+  if (prices.some(p => isNaN(Number(p)) || Number(p) < 0)) {
+    $toast('Prices must be valid, non-negative numbers.', 'error')
+    return
+  }
+  if (![addExamModel.price_1, addExamModel.price_3, addExamModel.price_6, addExamModel.price_12].some(p => Number(p) > 0)) {
+    $toast('Set at least one plan price greater than 0.', 'error')
+    return
+  }
+
    if(!addExamModel.slug){
       addExamModel.slug = addExamModel.name
       .toLowerCase().replace(/\s+/g, '-')
@@ -144,7 +156,9 @@ const submitSaveExam = async (updateStatus:number=1) => {
         closeModal()
           $toast(res?.data?.msg || 'Saved changes is done')
        }else{
-          $toast(res?.data?.msg || 'Saved changes is done')
+          // Failure comes back as HTTP 200 with status:'error' — surface the real
+          // backend message as an ERROR toast, not the green success one.
+          $toast(res?.data?.msg || 'Failed to save exam', 'error')
        }
 
   } catch (err:any) {

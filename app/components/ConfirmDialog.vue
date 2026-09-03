@@ -1,18 +1,53 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 const inputRef = ref<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null>(null)
+const dialogRef = ref<HTMLElement | null>(null)
 const error = ref('')
+let previouslyFocused: HTMLElement | null = null
 
 const confirmState = useConfirm()
 
-// dialog open and focus the input
+function focusableEls(): HTMLElement[] {
+  if (!dialogRef.value) return []
+  return Array.from(dialogRef.value.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null)
+}
+
+// Escape cancels; Tab is trapped inside the open dialog (a11y — keyboard users
+// can't tab out into the page behind the modal).
+function onDocKeydown(e: KeyboardEvent) {
+  if (!confirmState.value.show) return
+  if (e.key === 'Escape') { e.preventDefault(); onCancel(); return }
+  if (e.key === 'Tab') {
+    const els = focusableEls()
+    if (!els.length) return
+    const first = els[0], last = els[els.length - 1]
+    const active = document.activeElement as HTMLElement
+    if (e.shiftKey && (active === first || !dialogRef.value?.contains(active))) {
+      e.preventDefault(); last.focus()
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault(); first.focus()
+    }
+  }
+}
+
+// Open → remember the trigger, trap + focus. Close → release + restore focus.
 watch(() => confirmState.value.show, async (show) => {
   if (show) {
     error.value = ''
+    previouslyFocused = (document.activeElement as HTMLElement) ?? null
+    document.addEventListener('keydown', onDocKeydown)
     await nextTick()
-    inputRef.value?.focus()
+    ;(inputRef.value ?? focusableEls()[0])?.focus()
+  } else {
+    document.removeEventListener('keydown', onDocKeydown)
+    previouslyFocused?.focus?.()
+    previouslyFocused = null
   }
 })
+
+onBeforeUnmount(() => document.removeEventListener('keydown', onDocKeydown))
 
 const close = (result: unknown) => {
   confirmState.value.resolve?.(result)
@@ -53,42 +88,47 @@ const onKeydown = (e: KeyboardEvent) => {
 <template>
   <div v-if="confirmState.show" class="confirmoverlay overlay overlay-top open"
    @click.self="onCancel">
-     <div class="drawer" style="width:400px;max-width:96vw">
+     <div ref="dialogRef" class="drawer" style="width:400px;max-width:96vw"
+       role="dialog" aria-modal="true" aria-labelledby="confirmMsg">
         <div class="drawer-body">
-            <div class="confirmbox">
+            <div id="confirmMsg" class="confirmbox">
             {{ confirmState.message }}
             </div>
 
           <div v-if="confirmState.input" class="form-row" style="margin-top:16px">
-            <lable v-if="confirmState.lable"
-              class="form-label">
+            <label v-if="confirmState.lable"
+              class="form-label" for="confirmInputField">
               {{ confirmState.lable }}
-            </lable>
-            
+            </label>
+
              <textarea v-if="confirmState.input === 'textarea'"
+             id="confirmInputField"
+             ref="inputRef"
              v-model="confirmState.inputValue"
               class="form-input confirm-input"
               rows="2"
               :placeholder="confirmState.placeholder"
               style="resize:vertical;font-size:0.82rem"
             @keydown="onKeydown"></textarea>
-            
+
             <select
             v-else-if="confirmState.input === 'select'"
+            id="confirmInputField"
             ref="inputRef"
             v-model="confirmState.inputValue"
             class="form-select confirm-input">
             <option value="" disabled>
               {{ confirmState.placeholder || 'Select...' }}
             </option>
-            <option v-for="opt in confirmState.options" 
-              :key="opt.value" 
+            <option v-for="opt in confirmState.options"
+              :key="opt.value"
               :value="opt.value">
               {{ opt.label }}
             </option>
             </select>
 
-            <input v-else 
+            <input v-else
+            id="confirmInputField"
             ref="inputRef"
             v-model="confirmState.inputValue"
             :type="confirmState.input"

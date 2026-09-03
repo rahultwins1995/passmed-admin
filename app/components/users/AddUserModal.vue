@@ -115,6 +115,14 @@ const submitAddUser = async (e:any) => {
     return;
   }
 
+  // Basic email-format guard before POST (backend still validates authoritatively).
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRe.test(addUserModel.email.trim())) {
+    errorMsg.value = "Please enter a valid email address.";
+    $toast("Please enter a valid email address.","error");
+    return;
+  }
+
     fullLoading.value = true;
 
     // Resolve the school picker → medical_school for students; residents have no

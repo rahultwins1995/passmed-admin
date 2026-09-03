@@ -270,7 +270,7 @@ onMounted(async ()=> {
       <!------ start  action -------->
 
             <div class="wrapdrwractions">
-                <button class="btn btn-outline btn-sm" type="button"
+                <button v-if="canEdit('users')" class="btn btn-outline btn-sm" type="button"
                 @click="openEmailTemplateModal">
                   <svg fill="none" height="12" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewBox="0 0 24 24" width="12">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -278,30 +278,12 @@ onMounted(async ()=> {
                   </svg>
                   Email User
                 </button>
-
-                <!-- Extend needs an existing subscription to extend. Disable it when the
-                     user has none (total count 0), and while the count is still loading
-                     so it can't be clicked before we know. -->
-                <button class="btn btn-outline btn-sm" id="drawerExtendBtn" type="button"
-                :disabled="totalSubscriptiondata === 0 || loaderSubscription"
-                :title="totalSubscriptiondata === 0 ? 'No subscription to extend' : ''"
-                :style="(totalSubscriptiondata === 0 || loaderSubscription) ? 'opacity:0.5;cursor:not-allowed;' : ''"
-                @click="openExtendModal()">
-                    <svg fill="none" height="12" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewBox="0 0 24 24" width="12">
-                        <rect height="18" rx="2" width="18" x="3" y="4"></rect>
-                        <line x1="16" x2="16" y1="2" y2="6"></line>
-                        <line x1="8" x2="8" y1="2" y2="6"></line>
-                        <line x1="3" x2="21" y1="10" y2="10"></line>
-                        <line x1="12" x2="12" y1="14" y2="18"></line>
-                        <line x1="10" x2="14" y1="16" y2="16"></line>
-                    </svg>
-                    Extend
-                </button>
+                <!-- 'Extend' moved into the Subscription History section (in context). -->
 
                 <!-- Refund / Credit is now strictly per-transaction: use the
                      "Refund" button on each row in Subscription History below. -->
 
-                <button class="btn btn-outline btn-sm"  type="button"
+                <button v-if="canEdit('users')" class="btn btn-outline btn-sm"  type="button"
                  @click="openResetPasswordModal()">
                   Reset Password
                 </button>
@@ -411,8 +393,26 @@ onMounted(async ()=> {
       <!------ start two-col-------->
         <div class="two-col" style="margin:18px 0 20px">
             <div class="card" style="padding:16px">
-              <div class="card-header" style="margin-bottom:10px">
+              <div class="card-header" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px">
                 <div class="card-title">Subscription History</div>
+                <!-- Extend lives here (in the subscription section) so the action sits in
+                     context with the subscription it applies to. Disabled when the user
+                     has no subscription, or while the count is still loading. -->
+                <button v-if="canEdit('users')" class="btn btn-outline btn-sm" id="drawerExtendBtn" type="button"
+                  :disabled="totalSubscriptiondata === 0 || loaderSubscription"
+                  :title="totalSubscriptiondata === 0 ? 'No subscription to extend' : ''"
+                  :style="(totalSubscriptiondata === 0 || loaderSubscription) ? 'opacity:0.5;cursor:not-allowed;' : ''"
+                  @click="openExtendModal()">
+                  <svg fill="none" height="12" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewBox="0 0 24 24" width="12">
+                    <rect height="18" rx="2" width="18" x="3" y="4"></rect>
+                    <line x1="16" x2="16" y1="2" y2="6"></line>
+                    <line x1="8" x2="8" y1="2" y2="6"></line>
+                    <line x1="3" x2="21" y1="10" y2="10"></line>
+                    <line x1="12" x2="12" y1="14" y2="18"></line>
+                    <line x1="10" x2="14" y1="16" y2="16"></line>
+                  </svg>
+                  Extend
+                </button>
               </div>
 
                 <div class="table-wrap">
@@ -459,7 +459,7 @@ onMounted(async ()=> {
                       <td>{{ vl.expiry_date??'-' }}</td>
                       <td>
                         <button
-                          v-if="vl.refundable"
+                          v-if="vl.refundable && canEdit('users')"
                           type="button"
                           class="btn btn-outline btn-sm"
                           @click="openRefundCreditModal(vl)"

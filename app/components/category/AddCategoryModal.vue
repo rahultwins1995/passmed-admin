@@ -69,7 +69,6 @@ const submitSave = async () => {
     return $toast('Pick the Subject this sub-topic belongs to', 'error');
   }
 
-  closeModal();
   fullLoading.value = true;
 
   try {
@@ -80,8 +79,12 @@ const submitSave = async () => {
          $toast("Category is Saved");
           emit('saved', true);
           resetForm();
+          // Close only after the server confirms — on failure the drawer stays
+          // open with input intact.
+          closeModal();
 
      }else{
+           fullLoading.value = false;
            $toast(res?.data?.msg || 'Failed to saved','error');
     }
 

@@ -400,7 +400,7 @@ onMounted(async ()=> {
                     </span>
                     </div>
                     <div v-else  class="importCheckProgress">
-                        <button class="btn btn-outline btn-sm" 
+                        <button v-if="canEdit('institutions')" class="btn btn-outline btn-sm"
                         @click="openImportModal()"
                         type="button">
                         <div v-if="importStopProgress"
@@ -422,7 +422,7 @@ onMounted(async ()=> {
                         </button>
                     </div>
 
-                    <button class="btn btn-primary btn-sm" type="button"
+                    <button v-if="canEdit('institutions')" class="btn btn-primary btn-sm" type="button"
                     @click="openAddUserModal">
                         <svg fill="none" height="13" stroke="currentColor"
                             stroke-linecap="round" stroke-width="2.5"
@@ -442,7 +442,7 @@ onMounted(async ()=> {
 
             <span id="bulkCount">{{ selectedUsers.length }} selected</span>
             <div class="bulk-actions" style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-outline btn-sm" type="button"
+                <button v-if="canEdit('institutions')" class="btn btn-outline btn-sm" type="button"
                 @click="onClickDeleteSelected">
                 Click Delete
                 </button>
@@ -516,7 +516,7 @@ onMounted(async ()=> {
                           <span v-else class="badge badge-danger" >Expired</span>
                         </td>
                         <td>
-                            <button class="actTdbtn btn btn-danger btn-sm btn-icon" type="button"
+                            <button v-if="canEdit('institutions')" class="actTdbtn btn btn-danger btn-sm btn-icon" type="button"
                             @click="confirmDelete(vl.id)">
                                 <svg fill="none"
                                     height="12"
@@ -529,7 +529,7 @@ onMounted(async ()=> {
                                     <path d="M19 6l-1 14H6L5 6"></path>
                                 </svg>
                             </button>
-                            <button class="actTdbtn btn btn-outline btn-sm btn-icon EditAcn" type="button"
+                            <button v-if="canEdit('institutions')" class="actTdbtn btn btn-outline btn-sm btn-icon EditAcn" type="button"
                             @click="onClickEditModal(vl.id)">
                                 Edit
                             </button>

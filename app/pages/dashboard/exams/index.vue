@@ -287,7 +287,7 @@ onMounted(() => {
         </div>
 
         <div class="section-hdr-right">
-            <button class="btn btn-primary btn-sm" 
+            <button v-if="canEdit('exams')" class="btn btn-primary btn-sm"
              type="button"  @click="openAddExamModal">
             <svg fill="none" height="13" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewBox="0 0 24 24" width="13"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
             New Exam
@@ -455,7 +455,7 @@ onMounted(() => {
                     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
-                <button v-if="vl.status != '4'"
+                <button v-if="vl.status != '4' && canEdit('exams')"
                 @click="confirmDelete(vl.id)"
                 class="btn btn-danger btn-sm btn-icon"
                 type="button">

@@ -480,8 +480,8 @@ const submitQuestion = async (): Promise<boolean> => {
     return false
   }
 
-  // Embedded (Review & Approve): the host owns the lifecycle — don't self-close.
-  if (!props.embedded) closeModal();
+  // Close moved to the success branch — on failure the drawer must stay open with
+  // input intact. (Embedded/Review & Approve never self-closes: the host owns it.)
   fullLoading.value = true;
 
   const payload = {
@@ -521,6 +521,8 @@ const submitQuestion = async (): Promise<boolean> => {
           { text: '', correct: false },
           { text: '', correct: false }
         ]
+        // Close only now that the server has confirmed the update.
+        closeModal();
       }
       return true
 

@@ -807,9 +807,13 @@ onMounted(()=> {
   width: 100%;
   max-width: 780px;
   margin: 0 auto;                 /* centre the card in the page */
-  border: 1px solid var(--line, #e5e7eb);
+  /* Use the design tokens that flip under body.dark (dashstyle.css). The old
+     --card / --line vars don't exist in this app, so they always fell back to
+     white / light-grey — leaving this block white in dark mode. */
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  background: var(--card, #fff);
+  background: var(--white, #fff);
+  color: var(--ink);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 .user-edit-body { padding: 24px 26px; }

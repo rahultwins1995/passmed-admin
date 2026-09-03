@@ -576,7 +576,7 @@ watch(limit_data,async (val) => {
         Export CSV
       </button>
 
-      <button class="btn btn-primary btn-sm" @click="openAddUserModal">
+      <button v-if="canEdit('users')" class="btn btn-primary btn-sm" @click="openAddUserModal">
         Add User
       </button>
     </div>
@@ -681,7 +681,7 @@ watch(limit_data,async (val) => {
 
           <span id="bulkCount">{{ selectedUsers.length }} selected</span>
           <div class="bulk-actions" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-outline btn-sm" type="button"
+            <button v-if="canEdit('users')" class="btn btn-outline btn-sm" type="button"
              @click="bulkExtendAccess">
               Extend Access
             </button>
@@ -697,7 +697,7 @@ watch(limit_data,async (val) => {
              @click="bulkRevokeAccess">
               Revoke Access
             </button>
-            <button class="btn btn-danger btn-sm" type="button"
+            <button v-if="canEdit('users')" class="btn btn-danger btn-sm" type="button"
              @click="bulkDeleteUsers">
               Delete
             </button>
@@ -910,7 +910,7 @@ watch(limit_data,async (val) => {
               {{ u?.revenue??'-' }}
               </td>
               <td>
-              <button class="actTdbtn btn btn-danger btn-sm btn-icon"
+              <button v-if="canEdit('users')" class="actTdbtn btn btn-danger btn-sm btn-icon"
               @click="confirmDelete(u.id)"
               type="button">
               <svg fill="none" height="12" stroke="currentColor" stroke-linecap="round"
