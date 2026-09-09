@@ -53,6 +53,8 @@ const deltaClass = (pct: any, inverted = false): string => {
 const recent_signup = ref<any[]>([]);
 const activities = ref<any[]>([]);
 const subscriptionsByExam = ref<any[]>([]);
+const expiringSubscriptions = ref<any[]>([]);
+const flaggedByExam = ref<any[]>([]);
 const monthlyrevenue = ref<any>({})
 
 const auth = useAuthStore()
@@ -100,6 +102,8 @@ const fetchData = async () => {
         recent_signup.value=obj?.recent_signup??[];
         activities.value=obj?.activities??[];
         subscriptionsByExam.value=obj?.subscriptionsByExam??[];
+        expiringSubscriptions.value=obj?.expiringSubscriptions??[];
+        flaggedByExam.value=obj?.flaggedByExam??[];
 
     } else {
         details.value = null;
@@ -120,6 +124,8 @@ const fetchData = async () => {
         recent_signup.value=[];
         activities.value=[];
         subscriptionsByExam.value=[];
+        expiringSubscriptions.value=[];
+        flaggedByExam.value=[];
         monthlyrevenue.value={};
     }
 
@@ -143,6 +149,8 @@ const fetchData = async () => {
         recent_signup.value=[];
         activities.value=[];
         subscriptionsByExam.value=[];
+        expiringSubscriptions.value=[];
+        flaggedByExam.value=[];
         monthlyrevenue.value={};
  
   } finally {
@@ -407,6 +415,65 @@ watch(selectedRange, (val) => {
 
         </div>
     </div>
+
+    <div class="two-col">
+        <!-- Expiring subscriptions (next 7 days) -->
+        <div class="card wrap-subscriptions">
+            <div class="card-header">
+                <div class="card-title">Expiring Soon (7 days)</div>
+            </div>
+
+            <div class="progress-row text-center"
+            v-if="data_loading || expiringSubscriptions.length === 0">
+                <Empty v-if="!data_loading && expiringSubscriptions.length === 0"/>
+                <Loader_small v-else/>
+            </div>
+
+            <div v-else class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>User</th><th>Exams</th><th>Expiry</th><th>Days left</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(vl, key) in expiringSubscriptions" :key="key">
+                            <td>{{ vl?.user ?? '—' }}</td>
+                            <td>{{ (vl?.exams && vl.exams.length) ? vl.exams.join(', ') : '—' }}</td>
+                            <td>{{ vl?.expiry ?? '—' }}</td>
+                            <td>{{ vl?.days_left ?? '—' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Flagged questions by exam (open student flags) -->
+        <div class="card wrap-subscriptions">
+            <div class="card-header">
+                <div class="card-title">Flagged by Exam</div>
+            </div>
+
+            <div class="progress-row text-center"
+            v-if="data_loading || flaggedByExam.length === 0">
+                <Empty v-if="!data_loading && flaggedByExam.length === 0"/>
+                <Loader_small v-else/>
+            </div>
+
+            <div v-else class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Exam</th><th>Open flags</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(vl, key) in flaggedByExam" :key="key">
+                            <td>{{ vl?.name ?? '—' }}</td>
+                            <td>{{ vl?.flag_count ?? 0 }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div class="two-col">
         <!-- Recent signups -->
         <div class="card">

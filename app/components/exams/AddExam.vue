@@ -717,7 +717,6 @@ class="overlay open"  id="examEditorOverlay"
         </div>
       
         <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-outline btn-sm" id="examDeployBtn" style="display:none" type="button">Publish</button>
         <button class="drawer-close"
         @click="closeModal"
           type="button">

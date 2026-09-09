@@ -14,6 +14,13 @@ definePageMeta({
 
 const { $api, $toast,$confirm } = useNuxtApp()
 
+// Short "last edited" date from the page row's updated_at (real data). '—' when absent.
+const fmtEdited = (d: any): string => {
+  if (!d) return '—'
+  const dt = new Date(d)
+  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
 const pageCurnt = ref(1)
 const totalPages = ref(1)
 
@@ -54,8 +61,16 @@ const onclickEdit = async (itm:any) => {
   showEditModal.value=true;
 }
 
+// The home page lives at the site ROOT (/), not /home — so map the home slug to
+// an empty element. Used for both the preview link and the displayed URL so the
+// two always agree. Other slugs pass through unchanged.
+const normSlug = (itm:string='') : string => {
+  const slug = String(itm || '').toLowerCase().trim().replace(/^\/+/, '')
+  return ['home', 'homepage', 'index', ''].includes(slug) ? '' : itm
+}
+
 const onClickPreviewUrl = async (itm:string='') => {
-    let url = baseUrl(itm);
+    let url = baseUrl(normSlug(itm));
 
   if (!url.startsWith('http')) {
     url = `https://${url}`;
@@ -292,7 +307,7 @@ watch(pageCurnt, (newPage) => {
               </div>
               <div class="page-row-info">
                   <div class="page-row-title">{{ vl.title }}</div>
-                  <div class="page-row-url">{{ baseUrl(vl.slug) }}</div>
+                  <div class="page-row-url">{{ baseUrl(normSlug(vl.slug)) }}</div>
               </div>
                 <div class="q-actions">
                     <button
@@ -341,14 +356,10 @@ watch(pageCurnt, (newPage) => {
                       <div class="page-stat-num">{{ vl?.views??0 }}</div>
                       <div class="page-stat-label">Views/mo</div>
                   </div>
-                  <!--div class="page-stat">
-                      <div class="page-stat-num">4.2%</div>
-                      <div class="page-stat-label">Conv.</div>
-                  </div>
                   <div class="page-stat">
-                      <div class="page-stat-num">Mar 10</div>
+                      <div class="page-stat-num">{{ fmtEdited(vl?.updated_at) }}</div>
                       <div class="page-stat-label">Last edit</div>
-                  </div-->
+                  </div>
                 </div>
           </div>
         </div>

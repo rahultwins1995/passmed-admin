@@ -39,7 +39,7 @@ const fullLoading   = ref(false)
 const pageCurnt     = ref(1)
 const totalPages    = ref(1)
 const total_data    = ref<number>(0)
-const limit_data    = ref(10)
+const limit_data    = ref(20)
 const filter_status = ref('all')
 
 // Sorting is server-side: the list is paginated, so reordering only the rows
@@ -457,6 +457,13 @@ watch(filter_status,async (val) => {
     await fetchTeriggerData();
 })
 
+// Page-size change — reset to page 1 (the old page may not exist at the new
+// size) and refetch the list.
+watch(limit_data, async () => {
+    pageCurnt.value = 1;
+    await fetchData();
+})
+
 // Search box (QID / conflict reason) — debounced so we don't refetch on every
 // keystroke. Resets to page 1 so results aren't hidden on a later page.
 let _searchTimer: any = null
@@ -502,7 +509,7 @@ onMounted(async () => {
             </svg>
           </div>
         </div>
-        <div class="stat-num" style="font-size:1.4rem;color:var(--teal,#f59e0b)">
+        <div class="stat-num" style="font-size:1.4rem;color:var(--teal,#06b6d4)">
           {{ stats.all_count }}
         </div>
         <div class="stat-label">All Review</div>
@@ -570,13 +577,25 @@ onMounted(async () => {
       class="filter-input"
       placeholder="Search..."
       />
-      <select 
+      <select
       class="filter-input filter-select form-select"
       v-model="filter_status">
        <option value="all">All</option>
         <option value="pending">Pending</option>
         <option value="approved">Approved</option>
         <option value="rejected">Rejected</option>
+      </select>
+      <!-- Page-size selector — bound to limit_data (was hardcoded to 10). -->
+      <select
+      class="filter-input filter-select form-select"
+      v-model="limit_data"
+      aria-label="Rows per page">
+        <option :value="20">20 / page</option>
+        <option :value="50">50 / page</option>
+        <option :value="100">100 / page</option>
+        <option :value="200">200 / page</option>
+        <option :value="500">500 / page</option>
+        <option :value="1000">1000 / page</option>
       </select>
       <span style="font-size:0.78rem;color:var(--ink-dim);align-self:center">
         {{ total_data }} record{{ total_data !== 1 ? 's' : '' }}

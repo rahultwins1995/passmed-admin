@@ -58,7 +58,6 @@ const isDropOpen = (key: string) => {
       stroke-width="2" stroke-linecap="round">
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 00-3-3.87"></path><path d="M16 3.13a4 4 0 010 7.75"></path></svg>
       Users
-      <!-- <span class="nav-badge">2,418</span> -->
     </NuxtLink>
 
     <NuxtLink
@@ -72,7 +71,6 @@ const isDropOpen = (key: string) => {
       <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
       </svg>
       Question Bank
-      <!-- <span class="nav-badge amber">14</span> -->
     </NuxtLink>
 
     <div v-if="can('question_bank')"
@@ -131,7 +129,6 @@ const isDropOpen = (key: string) => {
       :class="{ active: route.path === '/dashboard/institutions' }">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"></path><line x1="12" y1="12" x2="12" y2="16"></line><line x1="10" y1="14" x2="14" y2="14"></line></svg>
       Institutions
-      <!-- <span class="nav-badge teal">12</span> -->
     </NuxtLink>
 
     <div v-if="can('analytics')"

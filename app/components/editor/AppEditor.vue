@@ -25,7 +25,13 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Underline,
-    Link,
+    // Restrict link hrefs to safe schemes. Without validate/protocols a
+    // `javascript:` (or `data:`) href is accepted and only defanged at render —
+    // i.e. it is stored / lives in the editing surface (stored / self-XSS).
+    Link.configure({
+      protocols: ['http', 'https', 'mailto'],
+      validate: (href) => /^(https?:|mailto:)/i.test(href),
+    }),
     ImageWithDelete.configure({
       inline: false,
       allowBase64: true,
@@ -56,7 +62,7 @@ const removeSelectedImage = () => {
   if (editor.value.isActive('image')) {
     editor.value.chain().focus().deleteSelection().run()
   } else {
-    $toast('Pehle image pe click karke select karein.', 'error')
+    $toast('Click an image first to select it.', 'error')
   }
 }
 
@@ -78,29 +84,50 @@ const toggleSource = () => {
   }
 }
 
-// jab source textarea mein type ho, parent ko bhi update bhejo
+// when the source textarea is edited, propagate the change up to the parent too
 const onSourceInput = () => {
   emit('update:modelValue', sourceHtml.value || '')
 }
+
+/* ---------- URL scheme guards (reject javascript:/data: etc. before insert) ---------- */
+const isSafeLink = (u: string) => /^(https?:|mailto:)/i.test(u.trim())
+const isSafeImg  = (u: string) => /^https?:\/\//i.test(u.trim())
 
 /* ---------- LINK ---------- */
 const setLinkUrl = () => {
   const previous = editor.value?.getAttributes('link').href || ''
   const url = window.prompt('Enter link URL:', previous)
   if (url === null) return
-  if (url.trim() === '') {
+  const trimmed = url.trim()
+  if (trimmed === '') {
     editor.value?.chain().focus().extendMarkRange('link').unsetLink().run()
     return
   }
+  if (!isSafeLink(trimmed)) {
+    $toast('Only http(s) or mailto links are allowed.', 'error')
+    return
+  }
   editor.value?.chain().focus().extendMarkRange('link')
-    .setLink({ href: url.trim() }).run()
+    .setLink({ href: trimmed }).run()
 }
+
+// Accessibility (editorial requirement): ask the author to describe every image
+// so medical content carries meaningful alt text. Blank is allowed and means the
+// image is decorative (screen readers skip it) — but the author is prompted each
+// time so alt is a conscious choice, not silently omitted.
+const promptAlt = (): string =>
+  (window.prompt('Describe this image for accessibility (leave blank if decorative):') ?? '').trim()
 
 /* ---------- IMAGE via URL ---------- */
 const addImageByUrl = () => {
   const url = window.prompt('Paste direct image URL (e.g. ...image.jpg):')
   if (!url || !url.trim()) return
-  editor.value?.chain().focus().setImage({ src: url.trim() }).run()
+  const trimmed = url.trim()
+  if (!isSafeImg(trimmed)) {
+    $toast('Only http(s) image URLs are allowed.', 'error')
+    return
+  }
+  editor.value?.chain().focus().setImage({ src: trimmed, alt: promptAlt() }).run()
 }
 
 /* ---------- IMAGE upload from PC (with loader) ---------- */
@@ -127,7 +154,7 @@ const onFileSelected = async (e: Event) => {
     const res: any = await $api.post('/uploads/image', formData)
     const url = res?.data?.url
     if (res?.data?.status === 'success' && url) {
-      editor.value?.chain().focus().setImage({ src: url }).run()
+      editor.value?.chain().focus().setImage({ src: url, alt: promptAlt() }).run()
     } else {
       $toast(res?.data?.msg || 'Image upload failed.', 'error')
     }
@@ -143,7 +170,7 @@ const onFileSelected = async (e: Event) => {
 const showLibrary = ref(false)
 const openLibrary = () => { showLibrary.value = true }
 const onLibrarySelect = (url: string) => {
-  if (url) editor.value?.chain().focus().setImage({ src: url }).run()
+  if (url) editor.value?.chain().focus().setImage({ src: url, alt: promptAlt() }).run()
 }
 
 //  destroy safely
