@@ -18,7 +18,8 @@ const inifilitForm ={
   channel_email: true,           // deliver as email
   channel_in_app: false,         // deliver as in-app notification
   subject: '',
-  message: ''
+  message: '',
+  cc_email: ''                   // optional CC — one record copy of the email
 };
 
 
@@ -308,6 +309,15 @@ const available_variables ="{{first_name}}";
             placeholder="e.g. New questions added to ABIM — March 2026"
             type="text"
              v-model="addFormModel.subject" />
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">CC Email <span style="font-weight:400;font-size:0.72rem;color:var(--ink-dim)">(optional — one copy of the email is sent here)</span></label>
+            <input
+            class="form-input"
+            type="email"
+            placeholder="support@passmed.com"
+             v-model="addFormModel.cc_email" />
         </div>
 
         <div class="form-row">

@@ -52,6 +52,9 @@ const inifitForm={
   work_study: "",
   specialty: "",
   exam_date: "",
+  // Extended-time accommodation (WCAG 2.2.1). "1" = normal; scales the student's
+  // timed-mode per-question countdown. Kept as a string to match the <select>.
+  extra_time_multiplier: "1",
 };
 
 const addUserModel = reactive<any>(inifitForm);
@@ -222,6 +225,9 @@ const fetchData = async () => {
         work_study: obj.work_study || "",
         specialty: obj.specialty || "",
         exam_date: obj.exam_date || "",
+        // Extended-time accommodation — prefill from stored value (backend sends a
+        // normalised "1" / "1.25" / "1.5" / "2"). Fallback "1" for legacy rows.
+        extra_time_multiplier: obj.extra_time_multiplier || "1",
         });
 
         // Seed the school dropdown / "other" free-text from the stored school.
@@ -762,6 +768,23 @@ onMounted(()=> {
                       </div>
                       </div>
 
+
+                      <!-- Extended-time accommodation (WCAG 2.2.1 "Timing Adjustable").
+                           Scales the student's timed-mode per-question countdown. Use
+                           for candidates with an approved extra-time accommodation. -->
+                      <div class="form-row" style="margin-bottom:20px">
+                        <label class="form-label">
+                          Extended Time (Accessibility)
+                          <span style="font-weight:400;font-size:0.72rem;color:var(--ink-dim)">(timed mode)</span>
+                        </label>
+                        <select class="form-input form-select"
+                        v-model="addUserModel.extra_time_multiplier">
+                          <option value="1">Normal (no extra time)</option>
+                          <option value="1.25">1.25× time (+25%)</option>
+                          <option value="1.5">1.5× time (+50%)</option>
+                          <option value="2">2× time (double)</option>
+                        </select>
+                      </div>
 
                       <div class="form-row" style="margin-bottom:20px">
                         <label class="form-label">

@@ -23,6 +23,7 @@ const initialForm={
   content: "",
   type: "manual",
   status: "0",
+  cc_email: "",   // optional CC — a copy of the sent email goes here
 };
 
 const addFromModel = reactive<any>(initialForm );
@@ -132,6 +133,17 @@ const available_variables ="{{first_name}} {{exam_name}} {{plan_name}} {{expiry_
                     placeholder="e.g. Welcome to Passmed US"
                     type="text"
                     v-model="addFromModel.subject"
+                    />
+                </div>
+                <div class="form-row" style="margin: 0 0 12px">
+                    <label class="form-label">
+                        CC Email
+                        <span style="font-weight:400;font-size:0.72rem;color:var(--ink-dim)">(optional — a copy of the sent email goes here)</span>
+                    </label>
+                    <input class="form-input" name="cc_email"
+                    placeholder="support@passmed.com"
+                    type="email"
+                    v-model="addFromModel.cc_email"
                     />
                 </div>
                 <div class="form-row">

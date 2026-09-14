@@ -37,6 +37,22 @@ export default defineEventHandler(async (event: H3Event) => {
     headers.Authorization = `Bearer ${token}`
   }
 
+  // ── Real browser IP for the admin IP allowlist ──────────────────────────────
+  // We deliberately strip client X-Forwarded-* above (anti-spoof), so the backend
+  // would otherwise only ever see THIS proxy's IP. Re-attach the genuine browser IP
+  // (resolved by the platform from the trusted edge X-Forwarded-For) in a dedicated
+  // header, stamped with a shared secret. The backend trusts X-Admin-Client-IP ONLY
+  // when X-Admin-Proxy-Secret matches, so a direct caller to the backend can't forge
+  // it. No-op until NUXT_ADMIN_PROXY_SECRET is set, so nothing breaks before rollout.
+  const proxySecret = (config as any).adminProxySecret || ''
+  if (proxySecret) {
+    const clientIp = getRequestIP(event, { xForwardedFor: true }) || ''
+    if (clientIp) {
+      headers['X-Admin-Client-IP'] = clientIp
+      headers['X-Admin-Proxy-Secret'] = proxySecret
+    }
+  }
+
     // Read body for all non-GET requests
     if (!['GET', 'HEAD'].includes(method)) {
 

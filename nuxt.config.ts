@@ -2,95 +2,120 @@
 // bundles, but a <link href="/assets/css/…"> is served untouched, so a browser
 // that cached the old file keeps using it after a deploy. Bump this when you edit
 // any of the CSS files under public/assets/css.
-const ASSET_V = '2026-07-13-dark-2'
+const ASSET_V = "2026-07-13-dark-2";
 
 export default defineNuxtConfig({
-  compatibilityDate: '2026-03-23',
+  compatibilityDate: "2026-03-23",
   devtools: { enabled: false },
-    srcDir: 'app/',
-    nitro: {
-    preset: 'vercel'
+  srcDir: "app/",
+  nitro: {
+    preset: "vercel",
+  },
+
+  // Security response headers for the admin (highest-privilege surface). Applied by
+  // Nitro to every route — reliable on the Vercel framework deployment (vercel.json
+  // `headers` are ignored for Nitro-served routes). HSTS is intentionally omitted:
+  // Vercel already sends it on *.vercel.app (and on custom domains), so adding it here
+  // would duplicate. None of these block scripts/styles/resources — app is unaffected.
+  //
+  // Content-Security-Policy is intentionally NOT here: it is set per-request (with a
+  // fresh nonce, and including frame-ancestors 'none') by server/plugins/csp.ts. A
+  // static CSP here would emit a SECOND, conflicting CSP header. Keep the two in sync:
+  // this block owns the non-CSP headers, the plugin owns the CSP.
+  routeRules: {
+    "/**": {
+      headers: {
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy":
+          "camera=(), microphone=(), geolocation=(), payment=()",
+      },
+    },
   },
   // ssr: false,
-   app: {
+  app: {
     head: {
       link: [
         {
-         rel: 'stylesheet',
-          href: '/assets/css/font-awesome.css'
-        }, 
-        {
-         rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Figtree:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap'
+          rel: "stylesheet",
+          href: "/assets/css/font-awesome.css",
         },
         {
-          rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap'
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Figtree:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap",
         },
         // These live in public/ and are linked raw, so Vite never fingerprints
         // them — the browser will happily serve a months-old cached copy after a
         // deploy. Bump ASSET_V whenever one of them changes (dark mode landing in
         // dashstyle.css is exactly the case that made this bite).
         {
-        rel: 'stylesheet',
-        href: `/assets/css/dashstyle.css?v=${ASSET_V}`
+          rel: "stylesheet",
+          href: `/assets/css/dashstyle.css?v=${ASSET_V}`,
         },
         {
-        rel: 'stylesheet',
-        href: `/assets/css/loginstyle.css?v=${ASSET_V}`
+          rel: "stylesheet",
+          href: `/assets/css/loginstyle.css?v=${ASSET_V}`,
         },
         {
-        rel: 'stylesheet',
-        href: `/assets/css/style.css?v=${ASSET_V}`
+          rel: "stylesheet",
+          href: `/assets/css/style.css?v=${ASSET_V}`,
         },
         {
-        rel: 'stylesheet',
-        href: `/assets/css/media-responsive.css?v=${ASSET_V}`
+          rel: "stylesheet",
+          href: `/assets/css/media-responsive.css?v=${ASSET_V}`,
         },
-        ],
+      ],
     },
   },
 
-  css: [
-    '~/assets/css/editor.css',
-  ],
-  plugins: ['~/plugins/axios.ts'],
-  modules: ['@pinia/nuxt'],
+  css: ["~/assets/css/editor.css"],
+  plugins: ["~/plugins/axios.ts"],
+  modules: ["@pinia/nuxt"],
   typescript: {
-    strict: true
+    strict: true,
   },
   runtimeConfig: {
+    // Server-only (never exposed to the browser): shared secret the /api proxy uses to
+    // prove to the backend it is the trusted admin proxy when forwarding the real
+    // browser IP (X-Admin-Client-IP) for the admin IP allowlist. Must equal
+    // ADMIN_PROXY_SECRET on the Laravel backend.
+    adminProxySecret: process.env.NUXT_ADMIN_PROXY_SECRET,
     public: {
-    baseUrl: process.env.NUXT_PUBLIC_BASE_URL,
-    apiBase: process.env.NUXT_PUBLIC_API_BASE,
-    // Set NUXT_PUBLIC_USE_PROXY=false (e.g. on local) to bypass the
-    // /api server proxy and call apiBase directly from the client.
-    useProxy: process.env.NUXT_PUBLIC_USE_PROXY !== 'false',
-    // Cloudflare Turnstile site key — the widget stays inert (renders nothing) until
-    // this is set. Server-side verify uses NUXT_TURNSTILE_SECRET (see server/utils).
-    turnstileSiteKey: process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
-    }
+      baseUrl: process.env.NUXT_PUBLIC_BASE_URL,
+      apiBase: process.env.NUXT_PUBLIC_API_BASE,
+      // Set NUXT_PUBLIC_USE_PROXY=false (e.g. on local) to bypass the
+      // /api server proxy and call apiBase directly from the client.
+      useProxy: process.env.NUXT_PUBLIC_USE_PROXY !== "false",
+      // Cloudflare Turnstile site key — the widget stays inert (renders nothing) until
+      // this is set. Server-side verify uses NUXT_TURNSTILE_SECRET (see server/utils).
+      turnstileSiteKey: process.env.NUXT_PUBLIC_TURNSTILE_SITE_KEY,
+    },
   },
-   imports: {
-    dirs: ['~/composables'],
+  imports: {
+    dirs: ["~/composables"],
   },
   vite: {
     optimizeDeps: {
       include: [
-      'axios',
-      '@vueform/multiselect',
+        "axios",
+        "@vueform/multiselect",
 
-      '@tiptap/core',
-      '@tiptap/vue-3',
-      '@tiptap/starter-kit',
+        "@tiptap/core",
+        "@tiptap/vue-3",
+        "@tiptap/starter-kit",
 
-      '@tiptap/extension-link',
-      '@tiptap/extension-image',
-      '@tiptap/extension-text-align',
-      '@tiptap/extension-code-block',
-      '@tiptap/extension-underline',
-      'chart.js/auto'
-      ]
-    }
-  }
+        "@tiptap/extension-link",
+        "@tiptap/extension-image",
+        "@tiptap/extension-text-align",
+        "@tiptap/extension-code-block",
+        "@tiptap/extension-underline",
+        "chart.js/auto",
+      ],
+    },
+  },
 });

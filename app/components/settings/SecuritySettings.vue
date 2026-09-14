@@ -36,6 +36,14 @@ const samlForm = reactive({
   x509_cert: ''
 })
 
+// Admin Login IP allowlist
+const showIpAllowlist = ref<boolean>(false)
+const yourIp = ref<string>('')
+const ipAllowlistForm = reactive({
+  security_ip_allowlist_enabled: 0 as number,
+  security_ip_allowlist: '' as string
+})
+
 //  Toggle helper
 const toggleRule = (key: 'security_2fa' | 'security_google_sso') => {
   securityForm[key] = securityForm[key] === 1 ? 0 : 1
@@ -129,9 +137,41 @@ const onClikTestLogin = () => {
     $toast('SAML test login isn’t available yet — SSO is not fully enabled.', 'warning')
 }
 
-// Admin IP allowlist enforcement is backend work that isn't built yet.
+// Admin IP allowlist — open/close the inline editor.
 const onClickConfigureIpAllowlist = () => {
-    $toast('Admin IP allowlist configuration is coming soon.', 'warning')
+    showIpAllowlist.value = !showIpAllowlist.value
+}
+
+// Toggle the enable flag (mirrors the other toggles).
+const toggleIpAllowlist = () => {
+    ipAllowlistForm.security_ip_allowlist_enabled =
+        ipAllowlistForm.security_ip_allowlist_enabled === 1 ? 0 : 1
+}
+
+// Save the allowlist. The backend cleans the list and — when enabling — auto-adds the
+// admin's own IP, so we mirror back whatever it returns to keep the UI in sync.
+const saveIpAllowlist = async () => {
+    try {
+        fullLoading.value = true
+        const res: any = await $api.post('/settings/security-ip-allowlist-save', {
+            security_ip_allowlist_enabled: ipAllowlistForm.security_ip_allowlist_enabled,
+            security_ip_allowlist: ipAllowlistForm.security_ip_allowlist
+        })
+        if (res.data.status === 'success') {
+            if (res.data.data) {
+                ipAllowlistForm.security_ip_allowlist_enabled = res.data.data.security_ip_allowlist_enabled
+                ipAllowlistForm.security_ip_allowlist = res.data.data.security_ip_allowlist
+                yourIp.value = res.data.data.your_ip || yourIp.value
+            }
+            $toast(res.data.msg || 'IP allowlist saved.', 'success')
+        } else {
+            $toast(res.data.msg || 'Failed to save IP allowlist.', 'error')
+        }
+    } catch (err: any) {
+        $toast(err?.response?.data?.msg || 'Failed to save IP allowlist.', 'error')
+    } finally {
+        fullLoading.value = false
+    }
 }
 
 
@@ -154,6 +194,10 @@ const fetchData=async () => {
             samlForm.idp_sso_url = obj.saml_idp_sso_url || ''
             samlForm.idp_entity_id = obj.saml_idp_entity_id || ''
             samlForm.x509_cert = obj.saml_x509_cert || ''
+
+            ipAllowlistForm.security_ip_allowlist_enabled = obj.security_ip_allowlist_enabled || 0
+            ipAllowlistForm.security_ip_allowlist = obj.security_ip_allowlist || ''
+            yourIp.value = obj.your_ip || ''
 
     }else{
       detailsfetch.value=null;
@@ -253,11 +297,44 @@ watch(() => props.activeTab, async (val) => {
                     Restrict admin access to specific IP ranges
                 </div>
             </div>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-right:12px">
+                    <div class="toggle-track"
+                    :class="ipAllowlistForm.security_ip_allowlist_enabled === 1 ? 'toggle-on' : ''"
+                    @click="toggleIpAllowlist">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </label>
                 <button class="btn btn-outline btn-sm"
                 type="button"
                 @click="onClickConfigureIpAllowlist">
-                Configure
+                {{ showIpAllowlist ? 'Hide' : 'Configure' }}
                 </button>
+            </div>
+
+            <div v-if="showIpAllowlist"
+                style="margin-top:10px;padding:14px 16px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface)">
+                <div style="font-size:0.72rem;color:var(--ink-dim);margin-bottom:8px;line-height:1.6">
+                    Ek IP ya CIDR range per line — jaise <b>203.0.113.10</b> ya <b>203.0.113.0/24</b>.
+                    Enable hone par sirf ye IPs hi admin panel tak pahunch sakenge.
+                    <template v-if="yourIp">
+                        <br>Aapka current IP: <b>{{ yourIp }}</b> — enable karne par ye apne-aap list me add ho jayega (aap lock-out nahi honge).
+                    </template>
+                </div>
+                <textarea class="form-input" rows="4"
+                    v-model="ipAllowlistForm.security_ip_allowlist"
+                    placeholder="203.0.113.10&#10;203.0.113.0/24&#10;49.36.50.20"
+                    style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;resize:vertical"></textarea>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+                    <button class="btn btn-primary btn-sm" type="button" @click="saveIpAllowlist">
+                        Save IP Allowlist
+                    </button>
+                    <span style="font-size:0.72rem;color:var(--ink-dim)">
+                        Status:
+                        <b :style="{ color: ipAllowlistForm.security_ip_allowlist_enabled === 1 ? 'var(--teal)' : 'var(--ink-dim)' }">
+                            {{ ipAllowlistForm.security_ip_allowlist_enabled === 1 ? 'Enabled' : 'Disabled' }}
+                        </b>
+                    </span>
+                </div>
             </div>
 
             <div class="submtScrty" style="display:flex;gap:8px;margin-top: 10px;">
