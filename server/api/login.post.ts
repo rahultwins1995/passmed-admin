@@ -17,8 +17,20 @@ export default defineEventHandler(async (event: H3Event) => {
   }
   if (body && 'turnstileToken' in body) delete body.turnstileToken
 
+  // Forward the REAL browser IP (stamped with the shared secret) so the backend's
+  // Admin Login IP allowlist enforces on the true client. This dedicated login route
+  // bypasses the /api catch-all proxy, so it must attach the header itself — otherwise
+  // the backend never sees a trusted client IP and (by design) fails open.
+  const ipHeaders: Record<string, string> = {}
+  const proxySecret = (config as any).adminProxySecret || ''
+  const clientIp = getRequestIP(event, { xForwardedFor: true }) || ''
+  if (proxySecret && clientIp) {
+    ipHeaders['X-Admin-Client-IP'] = clientIp
+    ipHeaders['X-Admin-Proxy-Secret'] = proxySecret
+  }
+
   try {
-    const res: any = await $fetch(`${config.public.apiBase}/login`, { method: 'POST', body })
+    const res: any = await $fetch(`${config.public.apiBase}/login`, { method: 'POST', body, headers: ipHeaders })
 
     if (res?.status === 'success' && res?.token) {
       const isProd = process.env.NODE_ENV === 'production'
