@@ -72,6 +72,14 @@ const initialForm ={
   // PassMed sets, and collapsing the two would quietly switch the policy off for
   // everyone who left it alone.
   session_timeout: "",
+
+  // ── Per-institution SAML 2.0 SSO ──────────────────────────────────────────
+  // Points at THIS institution's own IdP (Okta / Azure AD / Google Workspace).
+  // Members sign in via the per-institute SSO link (keyed by invite_code).
+  saml_enabled: 0,
+  saml_idp_entity_id: "",
+  saml_idp_sso_url: "",
+  saml_x509_cert: "",
 };
 
 const addFromModel = reactive<any>(initialForm);
@@ -304,6 +312,21 @@ const inviteCode   = ref<string>('')
 const inviteCopied = ref<boolean>(false)
 const inviteBusy   = ref<boolean>(false)
 
+// Per-institute SSO login link members use. Keyed by the invite_code (already unique).
+// Base = the region's portal URL (NUXT_PUBLIC_BASE_URL); the /saml/login/{code} route
+// is served in the SAML auth phase (2b).
+const rtConfig = useRuntimeConfig()
+// SP endpoint URLs the backend computes (metadata / acs / login) — keyed by invite_code.
+const samlUrls = ref<any>(null)
+const ssoLoginLink = computed(() => {
+  if (samlUrls.value?.login) return samlUrls.value.login
+  if (!inviteCode.value) return ''
+  const base = String((rtConfig.public as any).baseUrl || '').replace(/\/+$/, '')
+  return `${base}/saml/login/${inviteCode.value}`
+})
+// Open the members' SSO login link to test the full IdP round-trip (save + enable first).
+const testSso = () => { if (ssoLoginLink.value) window.open(ssoLoginLink.value, '_blank') }
+
 const copyInviteCode = async () => {
   if (!inviteCode.value) return
   try {
@@ -511,6 +534,12 @@ const fetchData = async () => {
 
         addFromModel.max_admins     = Number(detail.max_admins ?? 3)
         addFromModel.max_professors = Number(detail.max_professors ?? 10)
+
+        addFromModel.saml_enabled        = Number(detail.saml_enabled ?? 0)
+        addFromModel.saml_idp_entity_id  = detail.saml_idp_entity_id ?? ''
+        addFromModel.saml_idp_sso_url    = detail.saml_idp_sso_url ?? ''
+        addFromModel.saml_x509_cert      = detail.saml_x509_cert ?? ''
+        samlUrls.value                   = detail.saml_urls || null
 
         // `?? ''` NOT `|| ''` — both are '' here, but the intent matters: '' is the
         // stored value meaning "inherit", so it must survive the round trip.
@@ -865,6 +894,62 @@ onMounted(()=> {
                                 <option value="1">Yes — auto-renew annually</option>
                                 <option value="0">No — manual renewal required</option>
                             </select>
+                        </div>
+
+                        <!-- ── Per-institution SAML / SSO ─────────────────────────── -->
+                        <div class="form-row" style="border-top:1px solid var(--border);padding-top:14px;margin-top:6px">
+                            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+                                <span>SAML / SSO (this institution)</span>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;font-weight:400;letter-spacing:0">
+                                    <input type="checkbox"
+                                        :checked="Number(addFromModel.saml_enabled) === 1"
+                                        @change="addFromModel.saml_enabled = Number(addFromModel.saml_enabled) === 1 ? 0 : 1" />
+                                    <span style="font-size:0.75rem;color:var(--ink-dim)">Enable SSO for this institution</span>
+                                </label>
+                            </label>
+                            <div style="font-size:0.72rem;color:var(--ink-dim);line-height:1.6;margin-bottom:4px">
+                                Members sign in via this institution's own identity provider (Okta / Azure AD / Google Workspace).
+                                Share this SSO login link with them:
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <input class="form-input" type="text" readonly
+                                    :value="ssoLoginLink || '— save an invite code first —'"
+                                    style="background:var(--surface);color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:0.72rem" />
+                                <button class="btn btn-outline btn-sm" type="button"
+                                    :disabled="!ssoLoginLink || Number(addFromModel.saml_enabled) !== 1"
+                                    @click="testSso">
+                                    Test SSO
+                                </button>
+                            </div>
+                            <div v-if="samlUrls" style="margin-top:10px;font-size:0.72rem;color:var(--ink-dim);line-height:1.6">
+                                <b style="color:var(--ink)">Give these to the institution's IdP admin:</b>
+                                <div style="margin-top:6px">SP Entity ID / Metadata URL</div>
+                                <input class="form-input" type="text" readonly :value="samlUrls.metadata"
+                                    style="background:var(--surface);color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:0.7rem" />
+                                <div style="margin-top:6px">ACS URL (Reply / Assertion Consumer Service)</div>
+                                <input class="form-input" type="text" readonly :value="samlUrls.acs"
+                                    style="background:var(--surface);color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:0.7rem" />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <label class="form-label">IdP SSO URL</label>
+                            <input class="form-input" type="text"
+                                placeholder="https://your-idp.com/sso"
+                                v-model="addFromModel.saml_idp_sso_url" />
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">IdP Entity ID</label>
+                            <input class="form-input" type="text"
+                                placeholder="https://your-idp.com/entity"
+                                v-model="addFromModel.saml_idp_entity_id" />
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">X.509 Certificate</label>
+                            <textarea class="form-input" rows="3"
+                                style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;resize:vertical"
+                                placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                                v-model="addFromModel.saml_x509_cert"></textarea>
                         </div>
                     </div>
 
