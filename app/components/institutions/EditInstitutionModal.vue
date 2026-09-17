@@ -80,6 +80,7 @@ const initialForm ={
   saml_idp_entity_id: "",
   saml_idp_sso_url: "",
   saml_x509_cert: "",
+  saml_email_domains: "",
 };
 
 const addFromModel = reactive<any>(initialForm);
@@ -539,6 +540,7 @@ const fetchData = async () => {
         addFromModel.saml_idp_entity_id  = detail.saml_idp_entity_id ?? ''
         addFromModel.saml_idp_sso_url    = detail.saml_idp_sso_url ?? ''
         addFromModel.saml_x509_cert      = detail.saml_x509_cert ?? ''
+        addFromModel.saml_email_domains  = detail.saml_email_domains ?? ''
         samlUrls.value                   = detail.saml_urls || null
 
         // `?? ''` NOT `|| ''` — both are '' here, but the intent matters: '' is the
@@ -950,6 +952,16 @@ onMounted(()=> {
                                 style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;resize:vertical"
                                 placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
                                 v-model="addFromModel.saml_x509_cert"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Allowed email domains</label>
+                            <input class="form-input" type="text"
+                                placeholder="medschool.edu, med.example.ac.uk"
+                                v-model="addFromModel.saml_email_domains" />
+                            <small style="color:#94a3b8;font-size:0.72rem;display:block;margin-top:4px">
+                                Verified domain(s) this institution owns (comma-separated). SSO only signs
+                                in emails on these domains. Leave empty to keep SSO blocked.
+                            </small>
                         </div>
                     </div>
 

@@ -9,7 +9,10 @@ const { $api, $toast,$confirm } = useNuxtApp()
 
 const fullLoader = ref(false);
 
-const inifilitForm ={
+// Factory: returns a FRESH object each call. `reactive(obj)` proxies the SAME object, so
+// mutating the model also mutates a shared `initialForm`, making a later
+// Object.assign(model, initialForm) a no-op — fields never actually reset after send.
+const makeInitialForm = () => ({
   user_type: 'all',              // all | individual | institutional
   status: 'all',                 // all | subscriber | trialist
   exam_ids: [] as number[],      // empty = all exams
@@ -20,13 +23,13 @@ const inifilitForm ={
   subject: '',
   message: '',
   cc_email: ''                   // optional CC — one record copy of the email
-};
+});
 
 
-const addFormModel = reactive<any>(inifilitForm)
+const addFormModel = reactive<any>(makeInitialForm())
 
 const resetForm = () => {
-  Object.assign(addFormModel,inifilitForm)
+  Object.assign(addFormModel, makeInitialForm())
 }
 
 
@@ -36,6 +39,28 @@ const sendBroadcast = async () => {
     $toast('Select at least one channel — Email or In-app.', 'error')
     return
   }
+  // Content validation — never broadcast a blank subject/message to thousands, and
+  // reject a malformed CC address before it reaches the backend.
+  if (!String(addFormModel.subject || '').trim()) {
+    $toast('Subject is required.', 'error')
+    return
+  }
+  if (!String(addFormModel.message || '').trim()) {
+    $toast('Message is required.', 'error')
+    return
+  }
+  const cc = String(addFormModel.cc_email || '').trim()
+  if (cc && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cc)) {
+    $toast('CC email is not a valid email address.', 'error')
+    return
+  }
+  // Mass broadcast — confirm the recipient count first. Without this one click fires
+  // to every matched user (potentially thousands) immediately, with no undo.
+  const count = Number(audience_count.value) || 0
+  const confirmed = await $confirm(
+    `Send this broadcast to ${count} user${count === 1 ? '' : 's'}? This can't be undone.`
+  )
+  if (!confirmed) return
   fullLoader.value=true;
   try {
    const res:any= await $api.post('/notification-templates/broadcast', addFormModel)
@@ -46,7 +71,7 @@ const sendBroadcast = async () => {
       resetForm();
     }else{
       const message=res?.data.msg||"Failed to send broadcast";
-       $toast(message);
+       $toast(message, 'error');
     }
 
   } catch(err:any) {
@@ -69,7 +94,7 @@ const sendTest = async () => {
         resetForm();
       }else{
         const message=res?.data.msg||"Failed to Test email sent";
-        $toast(message);
+        $toast(message, 'error');
       }
 
     } catch(err:any) {

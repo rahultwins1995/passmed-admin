@@ -17,20 +17,23 @@ const closeModal = () => {
 const fullLoading=ref<boolean>(false);
 const nameError = ref<string>('');
 
-const initialForm={
+// Factory: returns a FRESH object each call. `reactive(obj)` proxies the SAME object, so
+// a shared `initialForm` gets mutated along with the model, making a later
+// Object.assign(model, initialForm) a no-op — fields never actually reset after submit.
+const makeInitialForm = () => ({
   name: "",
   subject: "",
   content: "",
   type: "manual",
   status: "0",
   cc_email: "",   // optional CC — a copy of the sent email goes here
-};
+});
 
-const addFromModel = reactive<any>(initialForm );
+const addFromModel = reactive<any>(makeInitialForm());
 
 // Reset form
 const resetForm = () => {
-  Object.assign(addFromModel, initialForm);
+  Object.assign(addFromModel, makeInitialForm());
 };
 
 // VALIDATION FUNCTION
