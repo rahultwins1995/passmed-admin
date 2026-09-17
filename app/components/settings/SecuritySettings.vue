@@ -281,10 +281,10 @@ watch(() => props.activeTab, async (val) => {
             <div v-if="showIpAllowlist"
                 style="margin-top:10px;padding:14px 16px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface)">
                 <div style="font-size:0.72rem;color:var(--ink-dim);margin-bottom:8px;line-height:1.6">
-                    Ek IP ya CIDR range per line — jaise <b>203.0.113.10</b> ya <b>203.0.113.0/24</b>.
-                    Enable hone par sirf ye IPs hi admin panel tak pahunch sakenge.
+                    One IP or CIDR range per line — e.g. <b>203.0.113.10</b> or <b>203.0.113.0/24</b>.
+                    When enabled, only these IPs can reach the admin panel.
                     <template v-if="yourIp">
-                        <br>Aapka current IP: <b>{{ yourIp }}</b> — enable karne par ye apne-aap list me add ho jayega (aap lock-out nahi honge).
+                        <br>Your current IP: <b>{{ yourIp }}</b> — it's added to the list automatically when you enable, so you won't lock yourself out.
                     </template>
                 </div>
                 <textarea class="form-input" rows="4"

@@ -43,14 +43,6 @@ export default defineNuxtPlugin(() => {
       }
     }
 
-    // Debug: log the exact URL each API call hits BEFORE it fires. For proxy calls
-    // it also shows the real backend URL the /api proxy forwards to (so you can see
-    // the actual scheme/host, e.g. http vs https). Remove once done debugging.
-    if (import.meta.client) {
-      const method = (options.method || 'GET')
-      console.log(`[api] ${method} → ${target}` + (bypass ? '' : `   (backend: ${apiBase}${url})`))
-    }
-
     try {
 
       const response = await $fetch(target, {
