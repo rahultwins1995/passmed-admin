@@ -29,13 +29,6 @@ const securityForm = reactive({
   security_session_timeout: '30min'
 })
 
-// SAML form
-const samlForm = reactive({
-  idp_sso_url: '',
-  idp_entity_id: '',
-  x509_cert: ''
-})
-
 // Admin Login IP allowlist
 const showIpAllowlist = ref<boolean>(false)
 const yourIp = ref<string>('')
@@ -114,29 +107,6 @@ const saveMaintenanceMode=async () => {
   }
 }
 
-// SAML Save
-const saveSamlSso = async () => {
-  try {
-    fullLoading.value = true
-    const res: any = await $api.post('/settings/security-saml-sso-save', samlForm)
-    if (res.data.status === 'success') {
-      $toast(res.data.msg || 'SAML config saved.', 'success')
-    } else {
-      $toast(res.data.msg || 'SAML save failed.', 'error')
-    }
-  } catch (err: any) {
-    $toast(err?.response?.data?.msg || 'SAML save failed.', 'error')
-  } finally {
-    fullLoading.value = false
-  }
-}
-
-// SAML test login: the SAML auth flow isn't implemented on the backend yet,
-// so there's nothing to launch. Be honest instead of faking a success.
-const onClikTestLogin = () => {
-    $toast('SAML test login isn’t available yet — SSO is not fully enabled.', 'warning')
-}
-
 // Admin IP allowlist — open/close the inline editor.
 const onClickConfigureIpAllowlist = () => {
     showIpAllowlist.value = !showIpAllowlist.value
@@ -191,9 +161,6 @@ const fetchData=async () => {
             
             security_re_auth.value = obj.security_re_auth || 0
             security_maintenance_mode.value = obj.security_maintenance_mode || 0
-            samlForm.idp_sso_url = obj.saml_idp_sso_url || ''
-            samlForm.idp_entity_id = obj.saml_idp_entity_id || ''
-            samlForm.x509_cert = obj.saml_x509_cert || ''
 
             ipAllowlistForm.security_ip_allowlist_enabled = obj.security_ip_allowlist_enabled || 0
             ipAllowlistForm.security_ip_allowlist = obj.security_ip_allowlist || ''
@@ -346,68 +313,8 @@ watch(() => props.activeTab, async (val) => {
             </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-                <div style="font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-dim);margin-bottom:16px">
-                    SAML / SSO
-                </div>
-                <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:14px;font-size:0.82rem;color:var(--ink-dim);line-height:1.6">
-                    Configure SAML 2.0 SSO for institutional users. Once configured, users from connected institutions can sign in via their identity provider (Okta, Azure AD, Google Workspace).
-                </div>
-
-                <div class="form-row-2">
-                    <div class="form-row" style="margin-bottom:12px">
-                        <label class="form-label">Entity ID (Issuer)</label>
-                        <input class="form-input" 
-                        :placeholder="baseUrl('saml/metadata')" 
-                        type="text" 
-                        :value="baseUrl('saml/metadata')"
-                         readonly 
-                        style="background:var(--surface);color:var(--ink-dim)" />
-                    </div>
-                    <div class="form-row" style="margin-bottom:12px">
-                        <label class="form-label">ACS URL</label>
-                        <input class="form-input"
-                        :placeholder="baseUrl('saml/acs')" 
-                        type="text" 
-                        :value="baseUrl('saml/acs')" 
-                        readonly style="background:var(--surface);color:var(--ink-dim)"/>
-                    </div>
-                    <div class="form-row" style="margin-bottom:12px">
-                        <label class="form-label">IdP SSO URL</label>
-                        <input class="form-input" id="samlIdpUrl"
-                        placeholder="https://your-idp.com/sso"
-                        type="text"
-                         v-model="samlForm.idp_sso_url"/>
-                    </div>
-                    <div class="form-row" style="margin-bottom:12px">
-                        <label class="form-label">IdP Entity ID</label>
-                        <input class="form-input" id="samlIdpEntity" 
-                        placeholder="https://your-idp.com/entity" type="text"
-                         v-model="samlForm.idp_entity_id"/>
-                    </div>
-                </div>
-
-                <div class="form-row" style="margin-bottom:12px">
-                    <label class="form-label">X.509 Certificate</label>
-                    <textarea class="form-input" id="samlCert" rows="3" style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;resize:vertical"
-                    v-model="samlForm.x509_cert"
-                    placeholder="-----BEGIN CERTIFICATE-----
-...
------END CERTIFICATE-----"></textarea>
-
-                </div>
-                <div style="display:flex;gap:8px">
-                    <button class="btn btn-primary btn-sm"
-                    type="button"
-                    @click="saveSamlSso">
-                    Save SAML Config
-                    </button>
-                    <button class="btn btn-outline btn-sm" type="button"
-                    @click="onClikTestLogin">
-                    Test Login
-                    </button>
-                </div>
-        </div>
+        <!-- Global SAML / SSO form removed (audit LOW — dead). SAML is configured
+             PER-INSTITUTION in the Edit Institution modal; nothing read these keys. -->
 
         <div class="card">
             <div style="font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-dim);margin-bottom:16px">
