@@ -57,7 +57,7 @@ const initialForm ={
   licence_status: "1",
     financee_name: "",
   invoice_email: "",
-  po_number: "PO-2026-1148",
+  po_number: "",
 
   // ── Team + security ───────────────────────────────────────────────────────
   // How many admins / professors this institution may have. Enforced by
@@ -195,6 +195,30 @@ const validateForm = () => {
     for (let d of domains) {
       if (!(emailRegex.test(d) || domainRegex.test(d))) {
         $toast("Invalid email/domain: " + d, "error");
+        return false;
+      }
+    }
+  }
+
+  // SAML SSO — validate only when it's enabled for this institution.
+  if (Number(addFromModel.saml_enabled) === 1) {
+    const ssoUrl = (addFromModel.saml_idp_sso_url || "").trim();
+    if (!/^https?:\/\/.+/i.test(ssoUrl)) {
+      $toast("SAML: a valid IdP SSO URL (https://…) is required.", "error");
+      return false;
+    }
+    const rawDomains = (addFromModel.saml_email_domains || "").trim();
+    if (!rawDomains) {
+      $toast("SAML: enter at least one allowed email domain.", "error");
+      return false;
+    }
+    const samlDomains = rawDomains
+      .split(/[\s,]+/)
+      .map((d:string) => d.trim().replace(/^@/, ""))
+      .filter(Boolean);
+    for (let d of samlDomains) {
+      if (!domainRegex.test(d)) {
+        $toast("SAML: invalid email domain: " + d, "error");
         return false;
       }
     }
@@ -639,15 +663,15 @@ onMounted(()=> {
                     class="tab-content active" id="itabed-content-details">
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Institution Name</label>
-                                <input class="form-input" name="instName"
+                                <label class="form-label" for="instName">Institution Name</label>
+                                <input class="form-input" id="instName" name="instName"
                                     placeholder="e.g. Stanford School of Medicine"
                                     type="text"
                                     v-model="addFromModel.institution_name"
                                 />
                             </div>
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Type</label>
+                                <label class="form-label" for="instType">Type</label>
                                 <select class="form-input form-select" id="instType"
                                 v-model="addFromModel.institution_type">
                                     <option value="medical-school">Medical School</option>
@@ -664,31 +688,31 @@ onMounted(()=> {
                              fallback for countries/states without a list). -->
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Country</label>
-                                <select class="form-input form-select" v-model="addFromModel.institution_country">
+                                <label class="form-label" for="instCountry">Country</label>
+                                <select class="form-input form-select" id="instCountry" v-model="addFromModel.institution_country">
                                     <option v-for="c in COUNTRIES" :key="c" :value="c">{{ c }}</option>
                                 </select>
                             </div>
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">State / Province</label>
-                                <select v-if="hasStateList" class="form-input form-select"
+                                <label class="form-label" for="instState">State / Province</label>
+                                <select v-if="hasStateList" class="form-input form-select" id="instState"
                                     v-model="addFromModel.institution_state">
                                     <option value="">— Select a state —</option>
                                     <option v-for="s in statesList" :key="s" :value="s">{{ s }}</option>
                                 </select>
-                                <input v-else class="form-input" name="instState" type="text" placeholder="State / Province"
+                                <input v-else class="form-input" id="instState" name="instState" type="text" placeholder="State / Province"
                                     v-model="addFromModel.institution_state" />
                             </div>
                         </div>
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">City</label>
-                                <select v-if="hasCityList" class="form-input form-select"
+                                <label class="form-label" for="instCity">City</label>
+                                <select v-if="hasCityList" class="form-input form-select" id="instCity"
                                     v-model="addFromModel.institution_city">
                                     <option value="">— Select a city —</option>
                                     <option v-for="c in citiesList" :key="c" :value="c">{{ c }}</option>
                                 </select>
-                                <input v-else class="form-input" name="instCity" type="text"
+                                <input v-else class="form-input" id="instCity" name="instCity" type="text"
                                     :placeholder="addFromModel.institution_state ? 'City' : 'Select a state first'"
                                     v-model="addFromModel.institution_city"/>
                             </div>
@@ -696,20 +720,21 @@ onMounted(()=> {
                         </div>
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Primary Contact Name</label>
-                                <input class="form-input" name="instContactName" placeholder="Dr. Sarah Patel" type="text" 
+                                <label class="form-label" for="instContactName">Primary Contact Name</label>
+                                <input class="form-input" id="instContactName" name="instContactName" placeholder="Dr. Sarah Patel" type="text"
                                 v-model="addFromModel.primarycontact_name" />
                             </div>
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Primary Contact Email</label>
-                                <input class="form-input" name="instContactEmail"
+                                <label class="form-label" for="instContactEmail">Primary Contact Email</label>
+                                <input class="form-input" id="instContactEmail" name="instContactEmail"
                                     placeholder="admin@institution.edu"  type="email"
                                     v-model="addFromModel.primarycontact_email"/>
                             </div>
                         </div>
                         <div class="form-row">
-                            <label class="form-label">Notes</label>
+                            <label class="form-label" for="instNotes">Notes</label>
                             <textarea class="form-input"
+                                id="instNotes"
                                 name="instNotes"
                                 placeholder="Internal notes about the account..."
                                 rows="2"
@@ -724,24 +749,24 @@ onMounted(()=> {
                      class="tab-content active" id="itabed-content-licence">
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Licence Start</label>
-                                <input class="form-input" name="instLicStart" type="date" 
+                                <label class="form-label" for="instLicStart">Licence Start</label>
+                                <input class="form-input" id="instLicStart" name="instLicStart" type="date"
                                 v-model="addFromModel.licence_start_date"/>
                             </div>
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Licence End</label>
-                                <input class="form-input" name="instLicEnd" type="date"
+                                <label class="form-label" for="instLicEnd">Licence End</label>
+                                <input class="form-input" id="instLicEnd" name="instLicEnd" type="date"
                                  v-model="addFromModel.licence_end_date" />
                             </div>
                         </div>
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Seats</label>
-                                <input class="form-input" id="instSeats" placeholder="100" type="number" 
+                                <label class="form-label" for="instSeats">Seats</label>
+                                <input class="form-input" id="instSeats" placeholder="100" type="number"
                                  v-model="addFromModel.licence_seats"/>
                             </div>
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Annual Contract Value</label>
+                                <label class="form-label" for="instACV">Annual Contract Value</label>
                                 <div style="display: flex; align-items: center">
                                     <span style="
                                             background: var(--surface);
@@ -772,14 +797,14 @@ onMounted(()=> {
                              SQL. -->
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Max Admins</label>
-                                <input class="form-input" type="number" min="1" placeholder="3"
+                                <label class="form-label" for="instMaxAdmins">Max Admins</label>
+                                <input class="form-input" id="instMaxAdmins" type="number" min="1" placeholder="3"
                                  v-model="addFromModel.max_admins"/>
                                 <div class="inst-hint">How many institution admins this school may have. Default 3.</div>
                             </div>
                             <div class="form-row" style="margin: 0 0 12px">
-                                <label class="form-label">Max Professors</label>
-                                <input class="form-input" type="number" min="0" placeholder="10"
+                                <label class="form-label" for="instMaxProfessors">Max Professors</label>
+                                <input class="form-input" id="instMaxProfessors" type="number" min="0" placeholder="10"
                                  v-model="addFromModel.max_professors"/>
                                 <div class="inst-hint">How many professors this school may have. Default 10.</div>
                             </div>
@@ -789,8 +814,8 @@ onMounted(()=> {
                              Same stored value the institution's own Settings page reads
                              and writes, so the two screens can't disagree. -->
                         <div class="form-row" style="margin: 0 0 12px">
-                            <label class="form-label">Session Timeout</label>
-                            <select class="form-input form-select" v-model="addFromModel.session_timeout">
+                            <label class="form-label" for="instSessionTimeout">Session Timeout</label>
+                            <select class="form-input form-select" id="instSessionTimeout" v-model="addFromModel.session_timeout">
                                 <!-- '' is "inherit", NOT "never". Keeping them apart is why
                                      the stored value can legitimately be an empty string. -->
                                 <option value="">Use platform default</option>
@@ -827,8 +852,8 @@ onMounted(()=> {
                         </div>
 
                         <div class="form-row" style="margin-top: 12px">
-                            <label class="form-label">Access Method</label>
-                            <select class="form-input form-select" name="instAccess"
+                            <label class="form-label" for="instAccess">Access Method</label>
+                            <select class="form-input form-select" id="instAccess" name="instAccess"
                             v-model="addFromModel.licence_access_method">
                                 <option value="email-domain-whitelist">Email domain whitelist</option>
                                 <option value="ip-range">IP range</option>
@@ -874,7 +899,7 @@ onMounted(()=> {
                             </div>
                         </div>
                         <div class="form-row">
-                            <label class="form-label">Email Domain(s)
+                            <label class="form-label" for="instDomain">Email Domain(s)
                                 <span style="
                                         font-weight: 400;
                                         text-transform: none;
@@ -890,11 +915,11 @@ onMounted(()=> {
                                 v-model="addFromModel.licence_email_domain"/>
                         </div>
                         <div class="form-row">
-                            <label class="form-label">Auto-renew</label>
-                            <select class="form-input form-select" style="max-width: 220px"
+                            <label class="form-label" for="instAutoRenew">Auto-renew</label>
+                            <select class="form-input form-select" id="instAutoRenew" style="max-width: 220px"
                             v-model="addFromModel.licence_auto_renew">
-                                <option value="1">Yes — auto-renew annually</option>
-                                <option value="0">No — manual renewal required</option>
+                                <option :value="1">Yes — auto-renew annually</option>
+                                <option :value="0">No — manual renewal required</option>
                             </select>
                         </div>
 
@@ -935,27 +960,27 @@ onMounted(()=> {
                         </div>
 
                         <div class="form-row">
-                            <label class="form-label">IdP SSO URL</label>
-                            <input class="form-input" type="text"
+                            <label class="form-label" for="instSamlSsoUrl">IdP SSO URL</label>
+                            <input class="form-input" id="instSamlSsoUrl" type="text"
                                 placeholder="https://your-idp.com/sso"
                                 v-model="addFromModel.saml_idp_sso_url" />
                         </div>
                         <div class="form-row">
-                            <label class="form-label">IdP Entity ID</label>
-                            <input class="form-input" type="text"
+                            <label class="form-label" for="instSamlEntityId">IdP Entity ID</label>
+                            <input class="form-input" id="instSamlEntityId" type="text"
                                 placeholder="https://your-idp.com/entity"
                                 v-model="addFromModel.saml_idp_entity_id" />
                         </div>
                         <div class="form-row">
-                            <label class="form-label">X.509 Certificate</label>
-                            <textarea class="form-input" rows="3"
+                            <label class="form-label" for="instSamlCert">X.509 Certificate</label>
+                            <textarea class="form-input" id="instSamlCert" rows="3"
                                 style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;resize:vertical"
                                 placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
                                 v-model="addFromModel.saml_x509_cert"></textarea>
                         </div>
                         <div class="form-row">
-                            <label class="form-label">Allowed email domains</label>
-                            <input class="form-input" type="text"
+                            <label class="form-label" for="instSamlDomains">Allowed email domains</label>
+                            <input class="form-input" id="instSamlDomains" type="text"
                                 placeholder="medschool.edu, med.example.ac.uk"
                                 v-model="addFromModel.saml_email_domains" />
                             <small style="color:#94a3b8;font-size:0.72rem;display:block;margin-top:4px">
@@ -1194,11 +1219,11 @@ onMounted(()=> {
                     <label class="form-label">Status</label>
                     <select class="form-input form-select" name="instStatus" 
                     v-model="addFromModel.licence_status">
-                        <option value="1">Active</option>
-                        <option value="0">Draft</option>
-                        <option value="2">Pending</option>
-                        <option value="3">Expired</option>
-                        <option value="4">Suspended</option>
+                        <option :value="1">Active</option>
+                        <option :value="0">Draft</option>
+                        <option :value="2">Pending</option>
+                        <option :value="3">Expired</option>
+                        <option :value="4">Suspended</option>
                     </select>
                 </div>
 
