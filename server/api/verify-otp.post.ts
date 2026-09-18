@@ -14,7 +14,7 @@ export default defineEventHandler(async (event: H3Event) => {
   // bypasses the /api catch-all proxy, so it attaches the header itself.
   const ipHeaders: Record<string, string> = {}
   const proxySecret = (config as any).adminProxySecret || ''
-  const clientIp = getRequestIP(event, { xForwardedFor: true }) || ''
+  const clientIp = realClientIp(event)
   if (proxySecret && clientIp) {
     ipHeaders['X-Admin-Client-IP'] = clientIp
     ipHeaders['X-Admin-Proxy-Secret'] = proxySecret

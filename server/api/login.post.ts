@@ -23,7 +23,7 @@ export default defineEventHandler(async (event: H3Event) => {
   // the backend never sees a trusted client IP and (by design) fails open.
   const ipHeaders: Record<string, string> = {}
   const proxySecret = (config as any).adminProxySecret || ''
-  const clientIp = getRequestIP(event, { xForwardedFor: true }) || ''
+  const clientIp = realClientIp(event)
   if (proxySecret && clientIp) {
     ipHeaders['X-Admin-Client-IP'] = clientIp
     ipHeaders['X-Admin-Proxy-Secret'] = proxySecret

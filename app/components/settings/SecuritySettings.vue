@@ -208,12 +208,15 @@ watch(() => props.activeTab, async (val) => {
             </div>
             
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                <div class="toggle-track toggle-2fa"
+                <button type="button" class="toggle-track toggle-2fa"
                 :class="securityForm.security_2fa === 1 ? 'toggle-on' : ''"
+                role="switch"
+                :aria-checked="securityForm.security_2fa === 1"
+                aria-label="Require 2FA for all admin logins"
                 @click="toggleRule('security_2fa')"
                 >
                     <div class="toggle-thumb"></div>
-                </div>
+                </button>
             </label>
         </div>
 
@@ -229,11 +232,14 @@ watch(() => props.activeTab, async (val) => {
             </div>
 
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                <div class="toggle-track toggle-sso"
+                <button type="button" class="toggle-track toggle-sso"
                 :class="securityForm.security_google_sso === 1 ? 'toggle-on' : ''"
+                role="switch"
+                :aria-checked="securityForm.security_google_sso === 1"
+                aria-label="Allow users to sign in with Google (Google SSO)"
                 @click="toggleRule('security_google_sso')">
                 <div class="toggle-thumb"></div>
-                </div>
+                </button>
             </label>
         </div>
             <div class="email-template-row">
@@ -265,11 +271,14 @@ watch(() => props.activeTab, async (val) => {
                 </div>
             </div>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-right:12px">
-                    <div class="toggle-track"
+                    <button type="button" class="toggle-track"
                     :class="ipAllowlistForm.security_ip_allowlist_enabled === 1 ? 'toggle-on' : ''"
+                    role="switch"
+                    :aria-checked="ipAllowlistForm.security_ip_allowlist_enabled === 1"
+                    aria-label="Admin login IP allowlist"
                     @click="toggleIpAllowlist">
                         <div class="toggle-thumb"></div>
-                    </div>
+                    </button>
                 </label>
                 <button class="btn btn-outline btn-sm"
                 type="button"
@@ -361,11 +370,18 @@ watch(() => props.activeTab, async (val) => {
 
 <style>
 .toggle-track{
+    /* Reset native <button> chrome so the switch looks identical to the old div. */
+    border: 0; padding: 0; margin: 0;
+    -webkit-appearance: none; appearance: none; font: inherit;
+    display: inline-block;
     width: 32px; height: 18px;
     background: var(--border);
     border-radius: 99px; cursor: pointer;
-    position: relative; 
+    position: relative;
     transition: background 0.2s;
+}
+.toggle-track:focus-visible{
+    outline: 2px solid var(--teal); outline-offset: 2px;
 }
 
 .toggle-track.toggle-on{

@@ -46,7 +46,7 @@ export default defineEventHandler(async (event: H3Event) => {
   // it. No-op until NUXT_ADMIN_PROXY_SECRET is set, so nothing breaks before rollout.
   const proxySecret = (config as any).adminProxySecret || ''
   if (proxySecret) {
-    const clientIp = getRequestIP(event, { xForwardedFor: true }) || ''
+    const clientIp = realClientIp(event)
     if (clientIp) {
       headers['X-Admin-Client-IP'] = clientIp
       headers['X-Admin-Proxy-Secret'] = proxySecret

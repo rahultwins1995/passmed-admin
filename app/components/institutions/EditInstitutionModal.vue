@@ -45,7 +45,7 @@ const initialForm ={
   institution_state: "",
   primarycontact_name: "",
   primarycontact_email: "", // only enter email
-  institution_notes: "",
+  institutions_notes: "",
   licence_start_date: "", //only enter date
   licence_end_date: "", // only enter date
   licence_seats: "0",  // only enter number not nagtive value like -1 not allow
@@ -714,7 +714,7 @@ onMounted(()=> {
                                 placeholder="Internal notes about the account..."
                                 rows="2"
                                 style="resize: vertical"
-                            v-model="addFromModel.institution_notes"></textarea>
+                            v-model="addFromModel.institutions_notes"></textarea>
                         </div>
                     </div>
 
