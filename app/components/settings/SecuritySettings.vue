@@ -47,6 +47,22 @@ const saveSecurity=async () => {
     fullLoading.value = true
 
     const res:any = await $api.post('/settings/security-save',securityForm)
+
+    // Also persist the IP-allowlist enable flag + list here, so flipping the toggle and
+    // clicking the section "Save Changes" actually saves it. Previously only the Configure
+    // panel's own "Save IP Allowlist" persisted it, so a user could think it saved when it
+    // hadn't. The backend cleans the list and auto-adds the admin's own IP on enable, so we
+    // mirror back whatever it returns to keep the UI in sync.
+    const ipRes:any = await $api.post('/settings/security-ip-allowlist-save', {
+        security_ip_allowlist_enabled: ipAllowlistForm.security_ip_allowlist_enabled,
+        security_ip_allowlist: ipAllowlistForm.security_ip_allowlist
+    })
+    if (ipRes?.data?.status === 'success' && ipRes.data.data) {
+        ipAllowlistForm.security_ip_allowlist_enabled = ipRes.data.data.security_ip_allowlist_enabled
+        ipAllowlistForm.security_ip_allowlist = ipRes.data.data.security_ip_allowlist
+        yourIp.value = ipRes.data.data.your_ip || yourIp.value
+    }
+
     if(res.data.status === 'success'){
      $toast(res.data.msg || 'Security settings saved.', 'success')
     }else{
