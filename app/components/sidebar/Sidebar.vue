@@ -9,7 +9,10 @@ const { $api } = useNuxtApp()
 // Live badge counts for the sidebar (feature row 12): flagged Qs / pending import
 // conflicts / active institutions. One lightweight call; badges are non-critical so
 // any failure just leaves them at 0 (hidden).
-const counts = ref({ question_feedback_open: 0, import_conflicts_pending: 0, institutions_active: 0 })
+const counts = ref({
+  question_feedback_open: 0, import_conflicts_pending: 0, institutions_active: 0,
+  users_total: 0, questions_total: 0,
+})
 onMounted(async () => {
   try {
     const res: any = await $api.get('/dashboard/sidebar-counts')
@@ -18,10 +21,16 @@ onMounted(async () => {
         question_feedback_open:   Number(res.data.question_feedback_open   ?? 0),
         import_conflicts_pending: Number(res.data.import_conflicts_pending ?? 0),
         institutions_active:      Number(res.data.institutions_active      ?? 0),
+        users_total:              Number(res.data.users_total              ?? 0),
+        questions_total:          Number(res.data.questions_total          ?? 0),
       }
     }
   } catch { /* non-critical — leave badges at 0 */ }
 })
+
+// Compact large counts for the badges (e.g. 12,453 → "12k", 1,250 → "1.3k").
+const fmtCount = (n: number): string =>
+  n > 999 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n)
 
 const logoutPage =async (e:any) => {
   e.preventDefault();
@@ -75,6 +84,7 @@ const isDropOpen = (key: string) => {
       stroke-width="2" stroke-linecap="round">
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 00-3-3.87"></path><path d="M16 3.13a4 4 0 010 7.75"></path></svg>
       Users
+      <span v-if="counts.users_total" class="nav-badge nav-badge-muted">{{ fmtCount(counts.users_total) }}</span>
     </NuxtLink>
 
     <NuxtLink
@@ -88,6 +98,7 @@ const isDropOpen = (key: string) => {
       <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
       </svg>
       Question Bank
+      <span v-if="counts.questions_total" class="nav-badge nav-badge-muted">{{ fmtCount(counts.questions_total) }}</span>
     </NuxtLink>
 
     <div v-if="can('question_bank')"
@@ -369,5 +380,11 @@ const isDropOpen = (key: string) => {
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
+}
+/* Muted variant for pure info counts (Users, Question Bank) — neutral, not an
+   attention/pending-work colour like the teal badges above. */
+.nav-badge-muted {
+  background: rgba(148, 163, 184, 0.22);
+  color: #64748b;
 }
 </style>
