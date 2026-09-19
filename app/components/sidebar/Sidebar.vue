@@ -1,10 +1,27 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const auth = useAuthStore()
 const { $api } = useNuxtApp()
+
+// Live badge counts for the sidebar (feature row 12): flagged Qs / pending import
+// conflicts / active institutions. One lightweight call; badges are non-critical so
+// any failure just leaves them at 0 (hidden).
+const counts = ref({ question_feedback_open: 0, import_conflicts_pending: 0, institutions_active: 0 })
+onMounted(async () => {
+  try {
+    const res: any = await $api.get('/dashboard/sidebar-counts')
+    if (res?.data) {
+      counts.value = {
+        question_feedback_open:   Number(res.data.question_feedback_open   ?? 0),
+        import_conflicts_pending: Number(res.data.import_conflicts_pending ?? 0),
+        institutions_active:      Number(res.data.institutions_active      ?? 0),
+      }
+    }
+  } catch { /* non-critical — leave badges at 0 */ }
+})
 
 const logoutPage =async (e:any) => {
   e.preventDefault();
@@ -129,6 +146,7 @@ const isDropOpen = (key: string) => {
       :class="{ active: route.path === '/dashboard/institutions' }">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"></path><line x1="12" y1="12" x2="12" y2="16"></line><line x1="10" y1="14" x2="14" y2="14"></line></svg>
       Institutions
+      <span v-if="counts.institutions_active" class="nav-badge">{{ counts.institutions_active }}</span>
     </NuxtLink>
 
     <div v-if="can('analytics')"
@@ -196,6 +214,7 @@ const isDropOpen = (key: string) => {
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </svg>
         Question Feedback
+        <span v-if="counts.question_feedback_open" class="nav-badge">{{ counts.question_feedback_open }}</span>
       </NuxtLink>
 
       <div class="nav-section-label">Questions Import</div>
@@ -208,6 +227,7 @@ const isDropOpen = (key: string) => {
       <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
       </svg>
        Import Conflict Review
+       <span v-if="counts.import_conflicts_pending" class="nav-badge">{{ counts.import_conflicts_pending }}</span>
       </NuxtLink>
 
 
@@ -331,3 +351,23 @@ const isDropOpen = (key: string) => {
     </div>
 </aside>
 </template>
+
+<style scoped>
+/* Live count badges on sidebar nav items (feature row 12). margin-left:auto pushes
+   the pill to the right edge of the flex nav-item row. */
+.nav-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #06b6d4;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+</style>
