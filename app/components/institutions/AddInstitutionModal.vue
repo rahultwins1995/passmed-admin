@@ -3,7 +3,7 @@ import Loading from '@/components/loaders/Loading.vue'
 
 import { ref, onMounted,reactive, watch, computed } from 'vue'
 // Country list (shared with the user onboarding modals).
-import { COUNTRIES, DEFAULT_COUNTRY } from '@/data/onboarding'
+import { COUNTRIES, DEFAULT_COUNTRY, MEDICAL_SCHOOLS_BY_COUNTRY } from '@/data/onboarding'
 
 const props = defineProps({
   modelValue: Boolean 
@@ -102,6 +102,19 @@ const hasStateList = computed(() => statesList.value.length > 0)
 const citiesList = computed<string[]>(() =>
   geo.value ? geo.value.citiesForState(addFromModel.institution_country || '', addFromModel.institution_state || '') : [])
 const hasCityList = computed(() => citiesList.value.length > 0)
+
+// Medical-school name suggestions for the selected country, flattened from the
+// grouped MEDICAL_SCHOOLS_BY_COUNTRY dataset (US/UK/SA/CA/PH/AU are populated).
+// Empty for countries with no list — those keep the plain free-text field.
+const schoolOptions = computed<string[]>(() => {
+  const groups = MEDICAL_SCHOOLS_BY_COUNTRY[addFromModel.institution_country || ''] || []
+  return groups.flatMap((g: any) => g.schools)
+})
+// Show the searchable school picker only for a medical-school institution in a
+// country we have a list for. The picker is a datalist-backed input, so the
+// admin can still type a school that isn't listed (add-if-missing).
+const useSchoolPicker = computed(() =>
+  addFromModel.institution_type === 'medical-school' && schoolOptions.value.length > 0)
 
 // Changing country invalidates the state + city picked for the old one.
 watch(() => addFromModel.institution_country, () => {
@@ -309,7 +322,20 @@ onMounted(() => {
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
                                 <label class="form-label">Institution Name</label>
-                                <input class="form-input" name="instName"
+                                <!-- Medical-school in a country we have a list for: searchable
+                                     dropdown that still allows typing an unlisted school. -->
+                                <input v-if="useSchoolPicker" class="form-input" name="instName"
+                                    list="add-inst-school-list"
+                                    placeholder="Search or type a medical school…"
+                                    type="text"
+                                    autocomplete="off"
+                                    v-model="addFromModel.institution_name"
+                                />
+                                <datalist v-if="useSchoolPicker" id="add-inst-school-list">
+                                    <option v-for="s in schoolOptions" :key="s" :value="s" />
+                                </datalist>
+                                <!-- Everything else stays free text. -->
+                                <input v-else class="form-input" name="instName"
                                     placeholder="e.g. Stanford School of Medicine"
                                     type="text"
                                     v-model="addFromModel.institution_name"

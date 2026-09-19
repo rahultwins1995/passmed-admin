@@ -60,14 +60,22 @@ const monthlyrevenue = ref<any>({})
 const auth = useAuthStore()
 
 const selectedRange = ref<number|string>("1");
+// Custom-range dates (YYYY-MM-DD). Only used when selectedRange === 'custom'.
+const customStart = ref<string>("");
+const customEnd   = ref<string>("");
 
 const fetchData = async () => {
   data_loading.value = true
 
   try {
-    const res:any = await $api.post("/dashboard",{
-        range:selectedRange.value
-    })
+    const payload: Record<string, any> = { range: selectedRange.value }
+    if (selectedRange.value === 'custom') {
+      // Don't call until both ends are picked, else the window is undefined.
+      if (!customStart.value || !customEnd.value) { data_loading.value = false; return }
+      payload.start_date = customStart.value
+      payload.end_date   = customEnd.value
+    }
+    const res:any = await $api.post("/dashboard", payload)
 
     const obj:any = res.data;
 
@@ -180,26 +188,20 @@ const userName = computed(() => {
 
 const exportDashboard = () => {
   try {
-    const d = monthlyrevenue.value
+    const d = chartData.value
 
     if (!d || !d.months?.length) {
       $toast('No data to export','error')
       return
     }
 
-    const period = Number(selectedRange.value || 6)
-
-    const months = d.months.slice(-period)
-
     const rows: string[] = [
       'Month,Board Revenue,Shelf Revenue,Total Revenue'
     ]
 
-    months.forEach((m: string, i: number) => {
-      const idx = d.months.length - period + i
-
-      const board = d.board?.[idx] ?? 0
-      const shelf = d.shelf?.[idx] ?? 0
+    d.months.forEach((m: string, i: number) => {
+      const board = d.board?.[i] ?? 0
+      const shelf = d.shelf?.[i] ?? 0
       const total = board + shelf
 
       rows.push([
@@ -217,7 +219,7 @@ const exportDashboard = () => {
 
     const a = document.createElement('a')
     a.href = url
-    a.download = `dashboard-${selectedRange.value}-months.csv`
+    a.download = `dashboard-${selectedRange.value}.csv`
     a.click()
 
     URL.revokeObjectURL(url)
@@ -237,12 +239,33 @@ onMounted(() => {
 })
 
 let timeout: any
-
-watch(selectedRange, (val) => {
+const debouncedFetch = () => {
   clearTimeout(timeout)
-  timeout = setTimeout(() => {
-    fetchData();
-  }, 300)
+  timeout = setTimeout(() => { fetchData(); }, 300)
+}
+watch(selectedRange, debouncedFetch)
+// Re-fetch when both custom dates are set (or changed).
+watch([customStart, customEnd], () => {
+  if (selectedRange.value === 'custom' && customStart.value && customEnd.value) debouncedFetch()
+})
+
+// Max selectable end date = today (no future ranges).
+const todayStr = new Date().toISOString().slice(0, 10)
+
+// Chart data sliced to honour the selected period. The backend returns up to 12
+// months; we show the last N for month presets, the year's months for "This
+// Year", and everything available for All-time / Custom.
+const rangeMonths = (r: number | string): number => {
+  if (r === 'year') return new Date().getMonth() + 1
+  if (r === 'all' || r === 'custom') return 12
+  return Number(r) || 12
+}
+const chartData = computed(() => {
+  const d = monthlyrevenue.value
+  if (!d || !Array.isArray(d.months) || !d.months.length) return d
+  const n = Math.min(d.months.length, rangeMonths(selectedRange.value))
+  const cut = (a: any) => Array.isArray(a) ? a.slice(-n) : a
+  return { ...d, months: d.months.slice(-n), board: cut(d.board), shelf: cut(d.shelf), users: cut(d.users), subs: cut(d.subs), churn: cut(d.churn) }
 })
 
 </script>
@@ -275,7 +298,17 @@ watch(selectedRange, (val) => {
                 <option value="3">Last 3 Months</option>
                 <option value="6">Last 6 Months</option>
                 <option value="12">Last 12 Months</option>
+                <option value="year">This Year</option>
+                <option value="all">All-time</option>
+                <option value="custom">Custom range…</option>
                 </select>
+                <template v-if="selectedRange === 'custom'">
+                    <input type="date" v-model="customStart" class="filter-input form-control btn-sm"
+                        style="font-size:0.8rem;padding:6px 8px" aria-label="Start date" />
+                    <span style="color:var(--ink-dim)">–</span>
+                    <input type="date" v-model="customEnd" :max="todayStr" class="filter-input form-control btn-sm"
+                        style="font-size:0.8rem;padding:6px 8px" aria-label="End date" />
+                </template>
 
                 <button class="btn btn-outline btn-sm"
                  type="button"
@@ -380,7 +413,7 @@ watch(selectedRange, (val) => {
                 <Loader_small v-else />
                 </div> 
               <div v-else class="dashRevenueChart">
-                <RevenueChart :chartData="monthlyrevenue" />
+                <RevenueChart :chartData="chartData" />
              </div> 
         </div>
 
