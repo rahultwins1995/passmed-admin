@@ -21,6 +21,17 @@ const fmtEdited = (d: any): string => {
   return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
+// Conversion rate = form submissions / views. Real data (both are lifetime
+// counters on the page row). '—' until there's at least one view and one
+// submission, so we never show a fabricated 0% or a divide-by-zero.
+const conversionPct = (vl: any): string => {
+  const views = Number(vl?.views ?? 0)
+  const subs = Number(vl?.submissions ?? 0)
+  if (!views || !subs) return '—'
+  const pct = Math.min(100, Math.round((subs / views) * 100))
+  return pct + '%'
+}
+
 const pageCurnt = ref(1)
 const totalPages = ref(1)
 
@@ -359,6 +370,10 @@ watch(pageCurnt, (newPage) => {
                   <div class="page-stat">
                       <div class="page-stat-num">{{ fmtEdited(vl?.updated_at) }}</div>
                       <div class="page-stat-label">Last edit</div>
+                  </div>
+                  <div class="page-stat">
+                      <div class="page-stat-num">{{ conversionPct(vl) }}</div>
+                      <div class="page-stat-label">Conversion</div>
                   </div>
                 </div>
           </div>

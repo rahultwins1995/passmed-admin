@@ -494,7 +494,7 @@ onMounted(() => {
                 </div>
 
                 <div class="page-stat">
-                    <div class="page-stat-num" style="color:var(--ink-dim)">0</div>
+                    <div class="page-stat-num" :style="{ color: (vl.total_flagged ?? 0) > 0 ? 'var(--red)' : 'var(--ink-dim)' }">{{ vl.total_flagged ?? 0 }}</div>
                     <div class="page-stat-label">Flagged</div>
                 </div>
             </div>
