@@ -14,10 +14,6 @@ import type { H3Event } from 'h3'
  *   3. x-forwarded-for  — leftmost entry, as a last-resort fallback.
  *
  * Returns '' when nothing resolves.
- *
- * NOTE: the console.debug below is a TEMPORARY diagnostic to confirm, in the Vercel
- * function logs, which header carries the real browser IP for this deployment. Remove it
- * once verified (the admin Settings → Security "Your current IP" should show your real IP).
  */
 export function realClientIp(event: H3Event): string {
   const h = (n: string) => String(getHeader(event, n) || '').trim()
@@ -29,11 +25,6 @@ export function realClientIp(event: H3Event): string {
   const fallback = getRequestIP(event, { xForwardedFor: true }) || ''
 
   const chosen = cf || xr || xffFirst || fallback
-
-  // TEMPORARY diagnostic — remove after verifying the correct header.
-  console.debug('[clientIp]', JSON.stringify({
-    'cf-connecting-ip': cf, 'x-real-ip': xr, 'x-forwarded-for': xffRaw, fallback, chosen,
-  }))
 
   return chosen
 }

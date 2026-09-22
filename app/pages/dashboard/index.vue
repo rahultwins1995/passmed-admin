@@ -72,6 +72,9 @@ const fetchData = async () => {
     if (selectedRange.value === 'custom') {
       // Don't call until both ends are picked, else the window is undefined.
       if (!customStart.value || !customEnd.value) { data_loading.value = false; return }
+      // Guard: start must not be after end. YYYY-MM-DD strings compare
+      // lexicographically = chronologically, so a plain > check is safe.
+      if (customStart.value > customEnd.value) { data_loading.value = false; return }
       payload.start_date = customStart.value
       payload.end_date   = customEnd.value
     }
@@ -303,10 +306,10 @@ const chartData = computed(() => {
                 <option value="custom">Custom range…</option>
                 </select>
                 <template v-if="selectedRange === 'custom'">
-                    <input type="date" v-model="customStart" class="filter-input form-control btn-sm"
+                    <input type="date" v-model="customStart" :max="customEnd || todayStr" class="filter-input form-control btn-sm"
                         style="font-size:0.8rem;padding:6px 8px" aria-label="Start date" />
                     <span style="color:var(--ink-dim)">–</span>
-                    <input type="date" v-model="customEnd" :max="todayStr" class="filter-input form-control btn-sm"
+                    <input type="date" v-model="customEnd" :min="customStart" :max="todayStr" class="filter-input form-control btn-sm"
                         style="font-size:0.8rem;padding:6px 8px" aria-label="End date" />
                 </template>
 

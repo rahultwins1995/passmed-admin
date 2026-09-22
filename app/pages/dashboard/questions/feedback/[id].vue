@@ -27,6 +27,11 @@ const getDataList = ref<any[]>([])
 const data_loading = ref(true)
 const fullLoading = ref(false)
 
+// Strip HTML for plain display — the question stem is stored as rich HTML, which
+// showed up with literal <p>/<strong> tags in this table (pattern from ImportReviewModal).
+const stripTags = (html?: string | null) =>
+  html ? html.replace(/<[^>]*>/g, '') : '—'
+
 // filters
 const input_search = ref('')
 
@@ -181,7 +186,7 @@ watch(pageCurnt, (newPage) => {
               <td>#{{ item.qid }}</td>
               <td>{{ item?.user?.email??'-' }}</td>
               <td>{{ item.feedback_text }}</td>
-              <td>{{ item.question_stem }}</td>
+              <td>{{ stripTags(item.question_stem) }}</td>
               <td>{{ item.create_date }}</td>
 
               <td>
