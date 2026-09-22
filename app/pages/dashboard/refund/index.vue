@@ -120,6 +120,7 @@ const approveAmount    = ref<any>('')
 const subAction      = ref<'cancel' | 'downgrade' | 'keep' | 'custom'>('cancel')
 const customExpiry   = ref('')     // yyyy-mm-dd when subAction === 'custom'
 const notifyCustomer = ref(false)  // email the customer about the change
+const showSubModal   = ref(false)  // the subscription-action step (full refunds only)
 
 // This approval empties the remaining refundable charge → the subscription is
 // fully refunded, so show the subscription-action picker.
@@ -156,13 +157,17 @@ const openApproveModal = (item:any) => {
 }
 
 // Process (approve) a refund — eligibility is advisory; ineligible needs an extra confirm.
-// `sub` (optional) carries the subscription action for a full refund.
-const processRefund = async (item:any, amount:any = null, sub:any = null) => {
-  const msg = item?.is_eligible
-    ? 'Process this refund?'
-    : `This request is NOT eligible by policy (${item?.eligibility_reason || 'ineligible'}). Process the refund anyway?`
-  const confirmed = await $confirm(msg)
-  if (!confirmed) return
+// `sub` (optional) carries the subscription action for a full refund. `skipConfirm`
+// is set when the caller (the subscription popup) is itself the confirmation step,
+// so we don't stack a second native confirm on top of it.
+const processRefund = async (item:any, amount:any = null, sub:any = null, skipConfirm = false) => {
+  if (!skipConfirm) {
+    const msg = item?.is_eligible
+      ? 'Process this refund?'
+      : `This request is NOT eligible by policy (${item?.eligibility_reason || 'ineligible'}). Process the refund anyway?`
+    const confirmed = await $confirm(msg)
+    if (!confirmed) return
+  }
 
   fullLoading.value = true
   try {
@@ -172,6 +177,7 @@ const processRefund = async (item:any, amount:any = null, sub:any = null) => {
     const obj:any = res.data
     if (obj.status === 'success') {
       $toast(obj.msg || 'Refund processed')
+      showSubModal.value = false
       showApproveModal.value = false
       approveItem.value = null
       fetchData()
@@ -192,20 +198,34 @@ const confirmApprove = async () => {
     $toast(`Amount cannot exceed $${approveMax.value.toFixed(2)}`, 'error'); return
   }
 
-  // On a full refund, attach the chosen subscription action.
-  let sub:any = null
+  // Full refund (or a partial that zeroes the remaining charge) → the admin must
+  // first choose what happens to the subscription. Open that step; it confirms and
+  // processes. Otherwise (a partial that leaves money on the charge) → process now.
   if (isFullRefund.value) {
-    if (subAction.value === 'custom' && !customExpiry.value) {
-      $toast('Pick a custom expiry date', 'error'); return
-    }
-    sub = {
-      subscription_action: subAction.value,
-      notify: notifyCustomer.value,
-    }
-    if (subAction.value === 'custom') sub.custom_expiry = customExpiry.value
+    subAction.value      = 'cancel'
+    customExpiry.value   = ''
+    notifyCustomer.value = false
+    showSubModal.value   = true
+    return
   }
 
-  await processRefund(approveItem.value, amt, sub)
+  await processRefund(approveItem.value, amt)
+}
+
+// The subscription step's confirm button — apply the chosen action + process refund.
+const confirmSubAndRefund = async () => {
+  const amt = Number(approveAmount.value)
+  if (subAction.value === 'custom' && !customExpiry.value) {
+    $toast('Pick a custom expiry date', 'error'); return
+  }
+  const sub:any = {
+    subscription_action: subAction.value,
+    notify: notifyCustomer.value,
+  }
+  if (subAction.value === 'custom') sub.custom_expiry = customExpiry.value
+
+  // This popup IS the confirmation, so skip the native "Process this refund?" prompt.
+  await processRefund(approveItem.value, amt, sub, true)
 }
 
 // Reject a refund request (sends the eligibility reason as the note for now).
@@ -412,46 +432,83 @@ onMounted(() => {
         <template v-else>Full refund of the requested amount.</template>
       </div>
 
-      <!-- Full refund → decide what happens to the customer's subscription. -->
+      <!-- On a full refund the button opens the subscription step; otherwise it
+           processes straight away. -->
       <div v-if="isFullRefund"
-        style="border-top:1px solid var(--line,#e5e7eb);padding-top:12px;margin-bottom:14px">
-        <label class="form-label" style="margin-bottom:8px;display:block">
-          Subscription after full refund
-        </label>
-
-        <label class="sub-opt">
-          <input type="radio" value="cancel" v-model="subAction" />
-          <span><strong>Revoke access now</strong> — end the subscription immediately.</span>
-        </label>
-        <label class="sub-opt">
-          <input type="radio" value="downgrade" v-model="subAction" />
-          <span><strong>Downgrade to Free Trial</strong> — keep the account, drop to trial.</span>
-        </label>
-        <label class="sub-opt">
-          <input type="radio" value="keep" v-model="subAction" />
-          <span><strong>Keep access</strong> (goodwill) — refund only, no change.</span>
-        </label>
-        <label class="sub-opt">
-          <input type="radio" value="custom" v-model="subAction" />
-          <span><strong>Custom expiry date</strong> — access ends on a chosen date.</span>
-        </label>
-
-        <input v-if="subAction === 'custom'" class="form-input" type="date"
-          v-model="customExpiry" style="margin:6px 0 4px 24px;max-width:200px" />
-
-        <label class="sub-opt" style="margin-top:10px">
-          <input type="checkbox" v-model="notifyCustomer" />
-          <span>Notify customer by email</span>
-        </label>
+        style="background:var(--bg-info,#eff6ff);border-radius:var(--r-sm);padding:9px 12px;font-size:0.74rem;margin-bottom:12px;color:var(--ink-dim)">
+        This is a <strong>full refund</strong> — next you'll choose what happens to the
+        customer's subscription.
       </div>
 
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" type="button"
           :disabled="fullLoading" @click="confirmApprove">
-          Process refund
+          {{ isFullRefund ? 'Continue' : 'Process refund' }}
         </button>
         <button class="btn btn-outline btn-sm" type="button"
           @click="showApproveModal = false">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subscription step — shown ONLY for a full refund (or a partial that zeroes the
+     remaining charge). The admin's choice is applied after the Stripe refund. This
+     popup is the confirmation, so there is no separate "Process this refund?" prompt. -->
+<div v-if="showSubModal" class="overlay overlay-top open"
+  @click.self="showSubModal = false">
+  <div class="drawer" style="max-width:440px">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-eyebrow">SUBSCRIPTION AFTER FULL REFUND</div>
+        <div class="drawer-title">{{ approveItem?.user?.name || approveItem?.user?.email || 'Refund request' }}</div>
+      </div>
+      <button class="drawer-close" type="button" @click="showSubModal = false">×</button>
+    </div>
+
+    <div class="drawer-body">
+      <div v-if="!approveItem?.is_eligible"
+        style="background:var(--bg-warning,#fef3c7);border-radius:var(--r-sm);padding:10px 12px;font-size:0.78rem;margin-bottom:14px">
+        ⚠ Not eligible by policy — {{ approveItem?.eligibility_reason || 'ineligible' }}
+      </div>
+
+      <div style="font-size:0.78rem;color:var(--ink-dim);margin-bottom:12px">
+        Refunding <strong>${{ Number(approveAmount).toFixed(2) }}</strong> in full.
+        What should happen to the subscription?
+      </div>
+
+      <label class="sub-opt">
+        <input type="radio" value="cancel" v-model="subAction" />
+        <span><strong>Revoke access now</strong> — end the subscription immediately.</span>
+      </label>
+      <label class="sub-opt">
+        <input type="radio" value="downgrade" v-model="subAction" />
+        <span><strong>Downgrade to Free Trial</strong> — keep the account, drop to trial.</span>
+      </label>
+      <label class="sub-opt">
+        <input type="radio" value="keep" v-model="subAction" />
+        <span><strong>Keep access</strong> (goodwill) — refund only, no change.</span>
+      </label>
+      <label class="sub-opt">
+        <input type="radio" value="custom" v-model="subAction" />
+        <span><strong>Custom expiry date</strong> — access ends on a chosen date.</span>
+      </label>
+
+      <input v-if="subAction === 'custom'" class="form-input" type="date"
+        v-model="customExpiry" style="margin:6px 0 4px 24px;max-width:200px" />
+
+      <label class="sub-opt" style="margin-top:10px;margin-bottom:16px">
+        <input type="checkbox" v-model="notifyCustomer" />
+        <span>Notify customer by email</span>
+      </label>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" type="button"
+          :disabled="fullLoading" @click="confirmSubAndRefund">
+          Confirm &amp; Refund
+        </button>
+        <button class="btn btn-outline btn-sm" type="button"
+          @click="showSubModal = false">Back</button>
       </div>
     </div>
   </div>
