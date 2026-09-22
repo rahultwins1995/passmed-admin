@@ -112,6 +112,26 @@ const showApproveModal = ref(false)
 const approveItem      = ref<any>(null)
 const approveAmount    = ref<any>('')
 
+// ── Subscription action on a FULL refund ─────────────────────────────────────
+// When this approval refunds the whole remaining charge (a full refund, or a
+// partial that leaves nothing refundable), the admin must decide what happens to
+// the customer's subscription. Backend applies the choice AFTER the Stripe refund
+// succeeds; it is best-effort so it can never undo the refund.
+const subAction      = ref<'cancel' | 'downgrade' | 'keep' | 'custom'>('cancel')
+const customExpiry   = ref('')     // yyyy-mm-dd when subAction === 'custom'
+const notifyCustomer = ref(false)  // email the customer about the change
+
+// This approval empties the remaining refundable charge → the subscription is
+// fully refunded, so show the subscription-action picker.
+const isFullRefund = computed(() => {
+  const amt  = Number(approveAmount.value)
+  const left = approveItem.value?.refundable_max
+  const ceil = left === null || left === undefined
+    ? Number(approveItem.value?.original_amount ?? approveItem.value?.refund_amount ?? 0)
+    : Number(left)
+  return amt > 0 && ceil > 0 && amt >= ceil
+})
+
 // Ceiling: the request itself, and (when the row is tied to a transaction) what
 // is left of the original charge after earlier refunds. approve() re-checks both.
 const approveMax = computed(() => {
@@ -128,11 +148,16 @@ const isPartialApprove = computed(() =>
 const openApproveModal = (item:any) => {
   approveItem.value   = item
   approveAmount.value = Number(item?.refund_amount ?? 0)
+  // Reset the subscription-action picker each time the modal opens.
+  subAction.value      = 'cancel'
+  customExpiry.value   = ''
+  notifyCustomer.value = false
   showApproveModal.value = true
 }
 
 // Process (approve) a refund — eligibility is advisory; ineligible needs an extra confirm.
-const processRefund = async (item:any, amount:any = null) => {
+// `sub` (optional) carries the subscription action for a full refund.
+const processRefund = async (item:any, amount:any = null, sub:any = null) => {
   const msg = item?.is_eligible
     ? 'Process this refund?'
     : `This request is NOT eligible by policy (${item?.eligibility_reason || 'ineligible'}). Process the refund anyway?`
@@ -141,8 +166,9 @@ const processRefund = async (item:any, amount:any = null) => {
 
   fullLoading.value = true
   try {
-    const res:any = await $api.post('/refunds/approve/' + item.id,
-      amount === null ? {} : { amount })
+    const payload:any = amount === null ? {} : { amount }
+    if (sub) Object.assign(payload, sub)
+    const res:any = await $api.post('/refunds/approve/' + item.id, payload)
     const obj:any = res.data
     if (obj.status === 'success') {
       $toast(obj.msg || 'Refund processed')
@@ -165,7 +191,21 @@ const confirmApprove = async () => {
   if (amt > approveMax.value) {
     $toast(`Amount cannot exceed $${approveMax.value.toFixed(2)}`, 'error'); return
   }
-  await processRefund(approveItem.value, amt)
+
+  // On a full refund, attach the chosen subscription action.
+  let sub:any = null
+  if (isFullRefund.value) {
+    if (subAction.value === 'custom' && !customExpiry.value) {
+      $toast('Pick a custom expiry date', 'error'); return
+    }
+    sub = {
+      subscription_action: subAction.value,
+      notify: notifyCustomer.value,
+    }
+    if (subAction.value === 'custom') sub.custom_expiry = customExpiry.value
+  }
+
+  await processRefund(approveItem.value, amt, sub)
 }
 
 // Reject a refund request (sends the eligibility reason as the note for now).
@@ -372,6 +412,39 @@ onMounted(() => {
         <template v-else>Full refund of the requested amount.</template>
       </div>
 
+      <!-- Full refund → decide what happens to the customer's subscription. -->
+      <div v-if="isFullRefund"
+        style="border-top:1px solid var(--line,#e5e7eb);padding-top:12px;margin-bottom:14px">
+        <label class="form-label" style="margin-bottom:8px;display:block">
+          Subscription after full refund
+        </label>
+
+        <label class="sub-opt">
+          <input type="radio" value="cancel" v-model="subAction" />
+          <span><strong>Revoke access now</strong> — end the subscription immediately.</span>
+        </label>
+        <label class="sub-opt">
+          <input type="radio" value="downgrade" v-model="subAction" />
+          <span><strong>Downgrade to Free Trial</strong> — keep the account, drop to trial.</span>
+        </label>
+        <label class="sub-opt">
+          <input type="radio" value="keep" v-model="subAction" />
+          <span><strong>Keep access</strong> (goodwill) — refund only, no change.</span>
+        </label>
+        <label class="sub-opt">
+          <input type="radio" value="custom" v-model="subAction" />
+          <span><strong>Custom expiry date</strong> — access ends on a chosen date.</span>
+        </label>
+
+        <input v-if="subAction === 'custom'" class="form-input" type="date"
+          v-model="customExpiry" style="margin:6px 0 4px 24px;max-width:200px" />
+
+        <label class="sub-opt" style="margin-top:10px">
+          <input type="checkbox" v-model="notifyCustomer" />
+          <span>Notify customer by email</span>
+        </label>
+      </div>
+
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" type="button"
           :disabled="fullLoading" @click="confirmApprove">
@@ -385,3 +458,19 @@ onMounted(() => {
 </div>
 
 </template>
+
+<style scoped>
+.sub-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.sub-opt input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+</style>
