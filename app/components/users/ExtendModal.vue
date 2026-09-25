@@ -6,6 +6,7 @@ const props = defineProps<{
   modelValue: boolean
   detailId: any | null
   pageDetail: any | null
+  subscriptions?: any[] | null
 }>()
 const emit = defineEmits(["update:modelValue","saved"]);
 
@@ -31,13 +32,27 @@ const resetForm = () => {
 Object.assign(addForm, inifitForm);
 };
 
+// ── Which subscription to extend ──────────────────────────────────────────────
+// A user can hold several subscriptions (one per exam). The admin picks the exact
+// one; its id is sent as subs_id so the backend extends THAT subscription instead
+// of arbitrarily picking the latest. Falls back to the user's overall expiry when
+// no subscription list is supplied.
+const selectedSubsId = ref<any>(null)
+const subsList = computed<any[]>(() => Array.isArray(props.subscriptions) ? props.subscriptions : [])
+const selectedSub = computed(() =>
+  subsList.value.find((s:any) => String(s.id) === String(selectedSubsId.value)) || null)
+// The expiry the extend calculations build on: the SELECTED subscription's expiry,
+// else the user's overall expiry.
+const baseExpiryStr = computed(() =>
+  selectedSub.value?.expiry_date || userDetail.value?.expiry_date || null)
+
 /**
  * CURRENT EXPIRY DATE
  */
 const currentExpiryDate = computed(() => {
-  if (!userDetail.value?.expiry_date) return '-'
+  if (!baseExpiryStr.value) return '-'
 
-  return new Date(userDetail.value.expiry_date).toLocaleDateString(
+  return new Date(baseExpiryStr.value).toLocaleDateString(
     'en-US',
     {
       month: 'short',
@@ -54,8 +69,8 @@ const selectExtend = (value: string) => {
 
   selectedExtend.value = value
 
-  const baseDate = userDetail.value?.expiry_date
-    ? new Date(userDetail.value.expiry_date)
+  const baseDate = baseExpiryStr.value
+    ? new Date(baseExpiryStr.value)
     : new Date()
 
   let days = 30
@@ -84,8 +99,8 @@ const newExpiryDate = computed(() => {
       year: 'numeric',
     })
   }
- const baseDate = userDetail.value?.expiry_date
-    ? new Date(userDetail.value.expiry_date)
+ const baseDate = baseExpiryStr.value
+    ? new Date(baseExpiryStr.value)
     : new Date()
 
   let days = 30
@@ -113,8 +128,8 @@ return newDate.toLocaleDateString('en-US', {
  */
  watch(() => addForm.customDate ,(vl)=>{
     if (vl){
-    const baseDate = userDetail.value?.expiry_date
-      ? new Date(userDetail.value.expiry_date)
+    const baseDate = baseExpiryStr.value
+      ? new Date(baseExpiryStr.value)
       : new Date()
 
     const customDate = new Date(vl)
@@ -157,6 +172,7 @@ const onSubmitExtend = async () => {
     fullLoading.value = true
     
     const payload = {
+      subs_id: selectedSubsId.value,      // which subscription to extend (scoped server-side)
       extend_type: selectedExtend.value,
       custom_date: addForm.customDate,
       reason: addForm.reason,
@@ -186,8 +202,14 @@ const onSubmitExtend = async () => {
   }
 }
 
+// Re-seed the extend date from the newly-chosen subscription's expiry.
+watch(selectedSubsId, () => { selectExtend(selectedExtend.value) })
+
 onMounted(async ()=> {
     userDetail.value=props.pageDetail
+    // Default to the first subscription in the list (if any), then seed the date.
+    if (subsList.value.length) selectedSubsId.value = subsList.value[0].id
+    selectExtend(selectedExtend.value)
 });
 
 </script>
@@ -226,6 +248,17 @@ onMounted(async ()=> {
             </div>
             <!-- BODY -->
            <div class="drawer-body">
+                <!-- WHICH SUBSCRIPTION — a user can hold several; the admin picks the
+                     exact one to extend (its id is sent as subs_id). -->
+                <div class="form-row" v-if="subsList.length">
+                <label class="form-label">Subscription</label>
+                <select class="form-input form-select" v-model="selectedSubsId">
+                    <option v-for="s in subsList" :key="s.id" :value="s.id">
+                        {{ s.exam_name || 'Exam' }} · {{ s.plan || '-' }} · exp {{ s.expiry_date || '-' }}
+                    </option>
+                </select>
+                </div>
+
                 <!-- EXTEND OPTIONS -->
                 <div class="form-row">
                 <label class="form-label">Extension Amount</label>

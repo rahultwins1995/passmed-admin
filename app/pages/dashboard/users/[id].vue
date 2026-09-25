@@ -558,6 +558,7 @@ v-model="showRefundCreditModal"
 v-model="showExtendModal"
 @saved="callbackSaved"
 :pageDetail="userDetail"
+:subscriptions="getSubscriptionData"
 :detailId="userId" />
 
 <EmailTemplate v-if="showEmailTemplateModal"

@@ -28,9 +28,20 @@ const data_loading = ref(true)
 const fullLoading = ref(false)
 
 // Strip HTML for plain display — the question stem is stored as rich HTML, which
-// showed up with literal <p>/<strong> tags in this table (pattern from ImportReviewModal).
-const stripTags = (html?: string | null) =>
-  html ? html.replace(/<[^>]*>/g, '') : '—'
+// showed up with literal <p>/<strong> tags in this table. Use the browser parser so
+// entities decode (&amp; → &) and literal "a < b" text survives, which the naive
+// <[^>]*> regex mangled. Display-only: the element is detached (scripts never run)
+// and we read textContent (plain text), so there is no XSS surface. Regex fallback
+// for SSR / where the DOM is unavailable.
+const stripTags = (html?: string | null): string => {
+  if (!html) return '—'
+  if (typeof document !== 'undefined') {
+    const el = document.createElement('div')
+    el.innerHTML = html
+    return (el.textContent || '').trim() || '—'
+  }
+  return html.replace(/<[^>]*>/g, '').trim() || '—'
+}
 
 // filters
 const input_search = ref('')

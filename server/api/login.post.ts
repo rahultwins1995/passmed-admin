@@ -11,7 +11,12 @@ export default defineEventHandler(async (event: H3Event) => {
   // Anti-bot: verify Cloudflare Turnstile BEFORE hitting the backend. verifyTurnstile is
   // a no-op until NUXT_TURNSTILE_SECRET is set — so admin login is unchanged until
   // Turnstile is configured; once configured, a missing/invalid token HARD-FAILS here.
-  if (!(await verifyTurnstile(body?.turnstileToken || '', getRequestIP(event, { xForwardedFor: true })))) {
+  // remoteip MUST be the real browser IP (cf-connecting-ip via realClientIp), NOT
+  // getRequestIP() — on Vercel behind Cloudflare that returns an infra IP (3.x), which
+  // never matches the IP that solved the challenge, so siteverify returns success:false
+  // and login fails ("Verification failed") even though the widget showed Success.
+  // realClientIp('') → verifyTurnstile omits remoteip (see its `if (remoteip)`).
+  if (!(await verifyTurnstile(body?.turnstileToken || '', realClientIp(event)))) {
     setResponseStatus(event, 400)
     return { status: 'error', message: 'Verification failed. Please try again.' }
   }

@@ -119,6 +119,7 @@ const approveAmount    = ref<any>('')
 // succeeds; it is best-effort so it can never undo the refund.
 const subAction      = ref<'cancel' | 'downgrade' | 'keep' | 'custom'>('cancel')
 const customExpiry   = ref('')     // yyyy-mm-dd when subAction === 'custom'
+const todayStr       = new Date().toISOString().slice(0, 10)  // min for custom expiry
 const notifyCustomer = ref(false)  // email the customer about the change
 const showSubModal   = ref(false)  // the subscription-action step (full refunds only)
 
@@ -495,6 +496,7 @@ onMounted(() => {
       </label>
 
       <input v-if="subAction === 'custom'" class="form-input" type="date"
+        :min="todayStr"
         v-model="customExpiry" style="margin:6px 0 4px 24px;max-width:200px" />
 
       <label class="sub-opt" style="margin-top:10px;margin-bottom:16px">

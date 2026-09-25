@@ -235,7 +235,7 @@ body.app-body div#__nuxt {
 .admin-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 50%;
   background: rgba(6, 182, 212, 0.2);
   border: 1.5px solid rgba(6, 182, 212, 0.3);
   display: flex;
