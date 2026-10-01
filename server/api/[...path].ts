@@ -11,6 +11,29 @@ export default defineEventHandler(async (event: H3Event) => {
   // Forward incoming headers
   const incomingHeaders = getHeaders(event)
 
+  // NEW-8: CSRF defence on the admin proxy. The auth cookie is SameSite=None, so a
+  // cross-site page could otherwise drive state-changing requests through this proxy.
+  // Mutations must be FIRST-PARTY: prefer Sec-Fetch-Site (browser-set, unspoofable by
+  // page JS); fall back to comparing Origin host against Host when it's absent.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const secFetch = String((incomingHeaders as any)['sec-fetch-site'] || '').toLowerCase()
+    const origin   = String((incomingHeaders as any)['origin'] || '')
+    const host     = String((incomingHeaders as any)['host'] || '')
+    let firstParty: boolean
+    if (secFetch) {
+      firstParty = ['same-origin', 'same-site', 'none'].includes(secFetch)
+    } else if (origin) {
+      try { firstParty = new URL(origin).host === host } catch { firstParty = false }
+    } else {
+      // No Sec-Fetch-Site and no Origin → not a browser cross-site form post; allow
+      // (server-to-server/legit tools). The Bearer cookie + backend perms still gate it.
+      firstParty = true
+    }
+    if (!firstParty) {
+      throw createError({ statusCode: 403, statusMessage: 'Cross-site request blocked' })
+    }
+  }
+
   if (!path) {
     throw createError({
       statusCode: 400,
