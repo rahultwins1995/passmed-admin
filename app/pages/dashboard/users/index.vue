@@ -133,7 +133,8 @@ const statusLabel = (u:any):string => {
     case 0: return 'Inactive'
     default:
       if (u?.is_trial || u?.subscription_status === 'trial') return 'Free Trial'
-      if (u?.subscription_status === 'institution') return 'Institution'
+      // Institution students who have joined come back as 'active' (their access
+      // is the institution licence); not-yet-accepted invites are status 2 → Pending.
       if (u?.subscription_status === 'expired') return 'Expired'
       return 'Active'
   }
@@ -610,6 +611,7 @@ watch(limit_data,async (val) => {
     <option value="6mo">6 Months</option>
     <option value="12mo">Annual (12mo)</option>
     <option value="trial">Trial</option>
+    <option value="institution">Institution</option>
     </select>
 
     <select class="filter-input filter-select form-select" id="userStatusFilter"
@@ -681,6 +683,9 @@ watch(limit_data,async (val) => {
 
           <span id="bulkCount">{{ selectedUsers.length }} selected</span>
           <div class="bulk-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" type="button" @click="selectedUsers = []">
+              ✕ Clear selection
+            </button>
             <button v-if="canEdit('users')" class="btn btn-outline btn-sm" type="button"
              @click="bulkExtendAccess">
               Extend Access

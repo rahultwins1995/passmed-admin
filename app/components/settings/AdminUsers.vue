@@ -263,7 +263,13 @@ const INSTITUTE_AREA_COLS = [
   'question_bank',
   'reports',
   'seats_cohorts',
-  'inst_settings',
+  // Settings, one column per section (Profile is always available).
+  'settings_program',
+  'settings_thresholds',
+  'settings_notifications',
+  'settings_team',
+  'settings_security',
+  'settings_danger',
   'notifications',
 ] as const
 
@@ -581,7 +587,12 @@ watch([filterRole, filterInstitution], async () => {
                 <th>Question Bank</th>
                 <th>Reports</th>
                 <th>Seats &amp; Cohorts</th>
-                <th>Settings</th>
+                <th>Settings · Program</th>
+                <th>Settings · Thresholds</th>
+                <th>Settings · Notifications</th>
+                <th>Settings · Team</th>
+                <th>Settings · Security</th>
+                <th>Settings · Danger zone</th>
                 <th>Notifications</th>
                 </tr>
             </thead>

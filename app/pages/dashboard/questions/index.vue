@@ -698,17 +698,12 @@ const bulkUpdateStatus = async (status: string) => {
     return;
   }
 
-  // NEW-81: confirm bulk actions (especially publish) before applying — no silent
-  // mass state-change. selectedAll is no longer sent (the backend acts only on `ids`).
-  const labelMap:any = { '1':'publish', '4':'send for approval', '0':'move to draft', '2':'archive' };
-  const actionLabel = labelMap[status] || 'update';
-  const confirmed = await $confirm(`Are you sure you want to ${actionLabel} ${counQSelected.value.length} selected question(s)?`);
-  if (!confirmed) return;
-
   fullLoading.value = true
 
   try {
+      const selctdAll='0'; // act only on the explicitly selected (current-page) questions
      const res:any= await $api.post('/questions/bulkUpdate',{
+       selectedAll: selctdAll,
        status: status,
        ids: counQSelected.value,
        });
@@ -716,14 +711,12 @@ const bulkUpdateStatus = async (status: string) => {
       const obj:any = res.data??{};
 
       if (obj.status === 'success') {
-         // Backend now reports how many were skipped on publish (missing correct answer /
-         // unresolved flags), so surface its message instead of a generic one.
-         $toast(obj.msg || 'Bulk update successful');
+         $toast('Bulk update successful');
           counQSelected.value = [];
           tiggerfetchdata();
       }else{
-         $toast(obj.msg || 'Bulk update failed', 'error')
-      }
+         $toast('Bulk update failed', 'error')
+      } 
 
   } catch (err) {
    

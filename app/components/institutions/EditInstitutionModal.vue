@@ -246,7 +246,12 @@ const submitForm = async (e:any) => {
     const res:any = await $api.post("/institutions/update/" + props.detailId, addFromModel);
   
     if (res.data.status === "success") {
-            $toast("Changes saved successfully");
+            // contact_email is only present when the primary contact changed.
+            if (res.data.contact_email === "failed") {
+                $toast(res.data.msg, "warning");
+            } else {
+                $toast(res.data.contact_email ? res.data.msg : "Changes saved successfully");
+            }
             emit("saved", true);
             closeModal();
             resetForm();
@@ -368,6 +373,98 @@ const copyInviteCode = async () => {
   }
   inviteCopied.value = true
   setTimeout(() => { inviteCopied.value = false }, 1800)
+}
+
+// ── Primary contact access email ────────────────────────────────────────────
+// Re-sends the SAVED primary contact their email: a set-password invite for a new
+// (or never-activated) account, or a "you're now an admin, sign in as usual" note
+// for an existing account. Recovery path for a bounced/expired/missed invite.
+// ── Institution logo ────────────────────────────────────────────────────────
+// Shown in the institute portal (sidebar + its Settings). Saved immediately on
+// upload/remove — not part of the form's Save — because it's a file, not a field.
+// The portal can also change it; there is one shared logo.
+const logoUrl     = ref<string>('')
+const logoBusy    = ref<boolean>(false)
+const logoInput   = ref<HTMLInputElement | null>(null)
+
+const onLogoChange = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !props.detailId) return
+  // The /api proxy caps request bodies at ~4.5MB on Vercel.
+  if (file.size > 4 * 1024 * 1024) {
+    $toast('Logo must be under 4MB.', 'error')
+    input.value = ''
+    return
+  }
+  const fd = new FormData()
+  fd.append('logo', file)
+  logoBusy.value = true
+  try {
+    const res: any = await $api.post('/institutions/logo/' + props.detailId, fd)
+    if (res?.data?.status === 'success') {
+      logoUrl.value = res.data.logo_url ?? ''
+      $toast('Logo updated.', 'success')
+    } else {
+      $toast(res?.data?.msg || 'Could not upload the logo.', 'error')
+    }
+  } catch (err: any) {
+    $toast(err?.response?.data?.msg || err?.response?.data?.message || 'Could not upload the logo.', 'error')
+  } finally {
+    logoBusy.value = false
+    input.value = ''
+  }
+}
+
+const removeLogo = async () => {
+  if (!props.detailId || logoBusy.value) return
+  logoBusy.value = true
+  try {
+    const res: any = await $api.post('/institutions/logo/' + props.detailId + '/remove')
+    if (res?.data?.status === 'success') {
+      logoUrl.value = ''
+      $toast('Logo removed.', 'success')
+    } else {
+      $toast(res?.data?.msg || 'Could not remove the logo.', 'error')
+    }
+  } catch (err: any) {
+    $toast(err?.response?.data?.msg || 'Could not remove the logo.', 'error')
+  } finally {
+    logoBusy.value = false
+  }
+}
+
+const contactBusy = ref<boolean>(false)
+const savedContactEmail = ref<string>('')
+// The button acts on the SAVED contact, so it is disabled while the field holds an
+// unsaved different address (saving is what invites a new contact).
+const contactChanged = computed(() =>
+  String(addFromModel.primarycontact_email || '').trim().toLowerCase()
+    !== savedContactEmail.value.trim().toLowerCase()
+)
+
+const resendContactEmail = async () => {
+  if (!props.detailId || contactBusy.value) return
+
+  const confirmed = await $confirm(
+    'Send the access email to ' + savedContactEmail.value + '? ' +
+    'If they have not set a password yet, any earlier set-password link stops working.'
+  )
+  if (!confirmed) return
+
+  contactBusy.value = true
+  try {
+    const res: any = await $api.post('/institutions/resend-contact-invite/' + props.detailId)
+    if (res?.data?.status === 'success') {
+      $toast(res?.data?.msg || 'Email sent.', 'success')
+    } else {
+      $toast(res?.data?.msg || 'Could not send the email.', 'error')
+    }
+  } catch (err: any) {
+    $toast(err?.response?.data?.msg || 'Could not send the email.', 'error')
+  } finally {
+    contactBusy.value = false
+  }
 }
 
 const regenerateInviteCode = async () => {
@@ -539,6 +636,8 @@ const fetchData = async () => {
         await prefillGeo(detail)
         addFromModel.primarycontact_name = detail.primarycontact_name ?? ''
         addFromModel.primarycontact_email = detail.primarycontact_email ?? ''
+        savedContactEmail.value = detail.primarycontact_email ?? ''
+        logoUrl.value = detail.logo_url ?? ''
         addFromModel.institutions_notes = detail.institutions_notes ?? ''
         addFromModel.licence_start_date = formatDate(detail.licence_start_date ?? '')
         addFromModel.licence_end_date = formatDate(detail.licence_end_date ?? '')
@@ -661,6 +760,27 @@ onMounted(()=> {
                     <!-- Details tab -->
                     <div v-if="activeInstTab === 'details'"
                     class="tab-content active" id="itabed-content-details">
+                        <div class="form-row" style="margin: 0 0 12px">
+                            <label class="form-label">Institution Logo</label>
+                            <div class="inst-logo-row">
+                                <div class="inst-logo-preview">
+                                    <img v-if="logoUrl" :src="logoUrl" alt="Institution logo" />
+                                    <span v-else>No logo</span>
+                                </div>
+                                <div>
+                                    <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden @change="onLogoChange" />
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                        <button type="button" class="btn btn-secondary" :disabled="logoBusy" @click="logoInput?.click()">
+                                            {{ logoBusy ? 'Working…' : (logoUrl ? 'Change logo' : 'Upload logo') }}
+                                        </button>
+                                        <button v-if="logoUrl" type="button" class="btn btn-secondary" :disabled="logoBusy" @click="removeLogo">Remove</button>
+                                    </div>
+                                    <div style="font-size:0.72rem;color:var(--ink-dim);margin-top:6px">
+                                        PNG, JPG or WebP · up to 4MB · shown in the institution's portal. Saved immediately.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
                                 <label class="form-label" for="instName">Institution Name</label>
@@ -729,6 +849,18 @@ onMounted(()=> {
                                 <input class="form-input" id="instContactEmail" name="instContactEmail"
                                     placeholder="admin@institution.edu"  type="email"
                                     v-model="addFromModel.primarycontact_email"/>
+                                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+                                    <button type="button" class="btn btn-secondary"
+                                        :disabled="!savedContactEmail || contactBusy || contactChanged"
+                                        @click="resendContactEmail"
+                                        style="white-space:nowrap">
+                                        {{ contactBusy ? 'Sending…' : 'Resend contact email' }}
+                                    </button>
+                                    <span v-if="savedContactEmail && contactChanged"
+                                        style="font-size:0.72rem;color:var(--ink-dim)">
+                                        Save changes to invite the new contact.
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <div class="form-row">
@@ -1262,6 +1394,14 @@ onMounted(()=> {
 </template>
 
 <style scoped>
+.inst-logo-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.inst-logo-preview {
+  width: 64px; height: 64px; border-radius: var(--r-sm, 8px);
+  border: 1.5px solid var(--border); background: #fff;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  font-size: 0.68rem; color: var(--ink-dim);
+}
+.inst-logo-preview img { width: 100%; height: 100%; object-fit: contain; }
 /* Explanatory line under a field. These settings are enforced server-side and are
    not self-evident from the label alone — "Max Admins" reads like a display cap
    rather than a hard limit somebody will hit and ring support about. */

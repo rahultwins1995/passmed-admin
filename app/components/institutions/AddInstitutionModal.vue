@@ -204,7 +204,13 @@ const submitForm = async (e:any) => {
     const res:any =await $api.post("/institutions/add",addFromModel);
 
     if (res.data.status === "success") {
-        $toast("Add user successfully");
+        // contact_email: 'sent' | 'failed' (absent when no primary contact was given).
+        // A failed invite must be visible — the admin needs to know to resend it.
+        if (res.data.contact_email === "failed") {
+            $toast(res.data.msg, "warning");
+        } else {
+            $toast(res.data.contact_email ? res.data.msg : "Institution added successfully");
+        }
         emit("saved", true);
         resetForm();
         closeModal();

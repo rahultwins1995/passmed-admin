@@ -83,7 +83,12 @@ const AREA_LEVELS: Record<string, Level[]> = {
   question_bank: ['none', 'view', 'edit', 'full'],
   reports:       ['none', 'view'],
   seats_cohorts: ['none', 'view', 'edit', 'full'],
-  inst_settings: ['none', 'view', 'edit', 'full'],
+  settings_program:       ['none', 'view', 'edit'],
+  settings_thresholds:    ['none', 'view', 'edit'],
+  settings_notifications: ['none', 'view', 'edit'],
+  settings_team:          ['none', 'view', 'full'],
+  settings_security:      ['none', 'view', 'edit'],
+  settings_danger:        ['none', 'view', 'edit'],
   notifications: ['none', 'view', 'edit'],
 }
 
@@ -131,8 +136,15 @@ const INSTITUTE_COLS = [
   { key: 'assign_exams',  label: 'Assign Exams',    hint: 'Manage can delete an assignment, removing the exam from every student who had it.' },
   { key: 'question_bank', label: 'Question Bank',   hint: 'Edit can author and import. Manage can approve questions into the live bank students sit.' },
   { key: 'reports',       label: 'Reports',         hint: 'Read-only by nature — there is nothing here to change.' },
-  { key: 'seats_cohorts', label: 'Seats and Cohorts', hint: 'Manage can delete a cohort and remove a student, which revokes their seat.' },
-  { key: 'inst_settings', label: 'Settings',        hint: 'Edit covers program details and thresholds. Manage can invite and remove admins and professors.' },
+  { key: 'seats_cohorts', label: 'Seats and Cohorts', hint: 'Manage can delete a cohort, remove a student (revoking their seat) and Upgrade / Add seats.' },
+  // Settings, per section. Everyone always has their own Profile tab; set every
+  // section to none for a Profile-only Settings page.
+  { key: 'settings_program',       label: 'Settings · Program',       hint: 'Institution info, timezone, logo and Shared Pool opt-in.' },
+  { key: 'settings_thresholds',    label: 'Settings · Thresholds',    hint: 'Pass mark, at-risk trigger and weekly question target.' },
+  { key: 'settings_notifications', label: 'Settings · Notifications', hint: "The institution's email alert preferences." },
+  { key: 'settings_team',          label: 'Settings · Team',          hint: 'View the admin and professor roster. Manage can invite, change roles and remove people.' },
+  { key: 'settings_security',      label: 'Settings · Security',      hint: 'Edit sets the session timeout for everyone. View shows it and the audit log (which also needs Reports).' },
+  { key: 'settings_danger',        label: 'Settings · Danger zone',   hint: 'View: full data export (also needs Reports). Edit: reset all resident progress and clear all student seats — irreversible.' },
   { key: 'notifications', label: 'Notifications',   hint: 'Their own inbox. Contacting PassMed support is always allowed, whatever this is set to.' },
 ] as const
 

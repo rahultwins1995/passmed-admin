@@ -442,6 +442,9 @@ onMounted(async ()=> {
 
             <span id="bulkCount">{{ selectedUsers.length }} selected</span>
             <div class="bulk-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline btn-sm" type="button" @click="selectedUsers = []">
+                ✕ Clear selection
+                </button>
                 <button v-if="canEdit('institutions')" class="btn btn-outline btn-sm" type="button"
                 @click="onClickDeleteSelected">
                 Click Delete
