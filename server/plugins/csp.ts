@@ -19,6 +19,22 @@
 // `npm run dev` is completely unaffected.
 import { randomBytes } from 'node:crypto'
 
+// NEW-92: the backend API host must NOT be hard-coded — the admin app is deployed
+// per environment/market (prod api.passmed.com, staging apitest.passmed.com, regional
+// hosts), each setting its own NUXT_PUBLIC_API_BASE. Direct uploads (axios postDirect)
+// bypass the /api proxy and connect straight to that host, so connect-src must allow
+// whatever NUXT_PUBLIC_API_BASE points at. Derive its ORIGIN once; fall back to the
+// prod host if the env var is somehow unset. (Mirrors the frontend's env-driven CSP.)
+const apiOrigin: string = (() => {
+  try {
+    return process.env.NUXT_PUBLIC_API_BASE
+      ? new URL(process.env.NUXT_PUBLIC_API_BASE).origin
+      : 'https://api.passmed.com'
+  } catch {
+    return 'https://api.passmed.com'
+  }
+})()
+
 const buildCsp = (nonce: string): string =>
   [
     "default-src 'self'",
@@ -42,7 +58,7 @@ const buildCsp = (nonce: string): string =>
     "img-src 'self' data: blob: https:",
     // Same-origin /api proxy is 'self'; direct backend calls need api.passmed.com.
     // challenges.cloudflare.com is Turnstile's client-side verify/telemetry endpoint.
-    "connect-src 'self' https://api.passmed.com https://challenges.cloudflare.com",
+    `connect-src 'self' ${apiOrigin} https://challenges.cloudflare.com`,
     // Turnstile renders its challenge inside an iframe from this origin.
     "frame-src https://challenges.cloudflare.com",
   ].join('; ')
