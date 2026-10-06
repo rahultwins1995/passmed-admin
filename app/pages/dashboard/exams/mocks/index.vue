@@ -67,16 +67,46 @@ const progressTrigger = (start: boolean = false) => {
   else { stopPolling(); importStopProgress.value = false; detailProgress.value = null }
 }
 
-const fetchData = async () => {
-  data_loading.value = true
+const fetchData = async (silent = false) => {
+  if (!silent) data_loading.value = true
   try {
     const res: any = await $api.get('/mocks')
     getDataList.value = res.data?.status === 'success' ? (res.data.data || []) : []
   } catch (e) {
     getDataList.value = []
   } finally {
-    data_loading.value = false
+    if (!silent) data_loading.value = false
+    maybeStartListRefresh()   // NEW-112: keep per-mock import badges live while any import runs
   }
+}
+
+// ── NEW-112: persistent per-mock import status ──────────────────────────────
+// Each mock carries last_import {status,total,created,failed,at} from /mocks.
+// While ANY mock has a RUNNING import (status 0), silently re-fetch the list so the
+// badges update live; stop as soon as none are running. Separate from the modal's
+// /imports/progress poller above — both only do a read-only GET /mocks.
+let listRefreshTimer: ReturnType<typeof setInterval> | null = null
+const anyImporting = () => getDataList.value.some((m: any) => m?.last_import && Number(m.last_import.status) === 0)
+const stopListRefresh = () => { if (listRefreshTimer) { clearInterval(listRefreshTimer); listRefreshTimer = null } }
+const maybeStartListRefresh = () => {
+  if (anyImporting()) {
+    if (!listRefreshTimer) { listRefreshTimer = setInterval(() => { fetchData(true) }, 3000) }
+  } else {
+    stopListRefresh()
+  }
+}
+const importBadge = (m: any) => {
+  const li = m?.last_import
+  if (!li) return { text: 'No import', cls: 'badge-grays' }
+  const st = Number(li.status)
+  if (st === 0) {
+    const pct = li.total > 0 ? Math.round((li.created / li.total) * 100) : 0
+    return { text: `Importing ${pct}%`, cls: 'badge-amber' }
+  }
+  if (st === 1) {
+    return { text: li.failed > 0 ? `Imported ${li.created} (${li.failed} failed)` : `Imported ${li.created}`, cls: 'badge-green' }
+  }
+  return { text: st === 3 ? 'Import stopped' : 'Import failed', cls: 'badge-danger' }
 }
 
 const openImport = (m: any) => {
@@ -185,7 +215,7 @@ const openEditQuestion = (q: any) => { editQuestionId.value = q.id; showEditQues
 const onQuestionSaved = () => { showEditQuestion.value = false; loadQuestions() }
 
 onMounted(() => { fetchData() })
-onUnmounted(() => { stopPolling() })
+onUnmounted(() => { stopPolling(); stopListRefresh() })
 </script>
 
 <template>
@@ -218,6 +248,7 @@ onUnmounted(() => { stopPolling() })
               <th>Mock</th>
               <th>Parent exam</th>
               <th>Questions</th>
+              <th>Import</th>
               <th>Duration</th>
               <th>Pass %</th>
               <th>Status</th>
@@ -226,7 +257,7 @@ onUnmounted(() => { stopPolling() })
           </thead>
           <tbody v-if="data_loading || getDataList.length === 0">
             <tr>
-              <td colspan="8">
+              <td colspan="9">
                 <Loader_small v-if="data_loading" />
                 <Empty v-else />
               </td>
@@ -240,6 +271,9 @@ onUnmounted(() => { stopPolling() })
               <td>
                 <span class="qcount-total">{{ m.question_count ?? 0 }} total</span>
                 <span class="qcount-sub">{{ m.published_count ?? 0 }} published</span>
+              </td>
+              <td>
+                <span :class="['badge', importBadge(m).cls]" :title="m.last_import?.at || ''">{{ importBadge(m).text }}</span>
               </td>
               <td>{{ m.duration_minutes ? m.duration_minutes + ' min' : '—' }}</td>
               <td>{{ m.pass_mark_value ?? '—' }}</td>

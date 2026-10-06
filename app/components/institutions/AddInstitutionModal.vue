@@ -187,6 +187,44 @@ const validateForm = () => {
   return true;
 };
 
+// ── Institution logo (optional) ─────────────────────────────────────────────
+// Picked here, uploaded right after the institution is created (the upload
+// endpoint needs its id). Same limits as Edit Licence.
+const logoFile    = ref<File | null>(null)
+const logoPreview = ref<string>('')
+const logoInput   = ref<HTMLInputElement | null>(null)
+const onLogoPick = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (file.size > 4 * 1024 * 1024) {
+    $toast('Logo must be under 4MB.', 'error')
+    return
+  }
+  if (logoPreview.value) URL.revokeObjectURL(logoPreview.value)
+  logoFile.value = file
+  logoPreview.value = URL.createObjectURL(file)
+}
+const clearLogo = () => {
+  if (logoPreview.value) URL.revokeObjectURL(logoPreview.value)
+  logoFile.value = null
+  logoPreview.value = ''
+}
+const uploadLogoFor = async (institutionId: number | string) => {
+  if (!logoFile.value || !institutionId) return
+  const fd = new FormData()
+  fd.append('logo', logoFile.value)
+  try {
+    const res: any = await $api.post('/institutions/logo/' + institutionId, fd)
+    if (res?.data?.status !== 'success') {
+      $toast(res?.data?.msg || 'Institution added, but the logo upload failed — add it from Edit Licence.', 'warning')
+    }
+  } catch (err: any) {
+    $toast(err?.response?.data?.msg || 'Institution added, but the logo upload failed — add it from Edit Licence.', 'warning')
+  }
+}
+
 // Submit API
 const submitForm = async (e:any) => {
   e.preventDefault();
@@ -204,6 +242,10 @@ const submitForm = async (e:any) => {
     const res:any =await $api.post("/institutions/add",addFromModel);
 
     if (res.data.status === "success") {
+        if (logoFile.value && res.data.institution_id) {
+            await uploadLogoFor(res.data.institution_id);
+        }
+        clearLogo();
         // contact_email: 'sent' | 'failed' (absent when no primary contact was given).
         // A failed invite must be visible — the admin needs to know to resend it.
         if (res.data.contact_email === "failed") {
@@ -325,6 +367,27 @@ onMounted(() => {
                     <!-- Details tab -->
                     <div v-if="activeInstTab === 'details'"
                     class="tab-content active" id="itabed-content-details">
+                        <div class="form-row" style="margin: 0 0 12px">
+                            <label class="form-label">Institution Logo <span style="font-weight:400;color:var(--ink-dim)">(optional)</span></label>
+                            <div class="inst-logo-row">
+                                <div class="inst-logo-preview">
+                                    <img v-if="logoPreview" :src="logoPreview" alt="Institution logo" />
+                                    <span v-else>No logo</span>
+                                </div>
+                                <div>
+                                    <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden @change="onLogoPick" />
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                        <button type="button" class="btn btn-secondary" @click="logoInput?.click()">
+                                            {{ logoPreview ? 'Change logo' : 'Upload logo' }}
+                                        </button>
+                                        <button v-if="logoPreview" type="button" class="btn btn-secondary" @click="clearLogo">Remove</button>
+                                    </div>
+                                    <div style="font-size:0.72rem;color:var(--ink-dim);margin-top:6px">
+                                        PNG, JPG or WebP · up to 4MB · shown in the institution's portal.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-row-2">
                             <div class="form-row" style="margin: 0 0 12px">
                                 <label class="form-label">Institution Name</label>
@@ -672,3 +735,14 @@ onMounted(() => {
     </div>
 
 </template>
+
+<style scoped>
+.inst-logo-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.inst-logo-preview {
+  width: 64px; height: 64px; border-radius: var(--r-sm, 8px);
+  border: 1.5px solid var(--border); background: #fff;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  font-size: 0.68rem; color: var(--ink-dim);
+}
+.inst-logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+</style>
