@@ -49,7 +49,7 @@ const toggleRule = async (id:any) => {
 const updateDeliveryEmail = async (id:any=0) => {
    fullLoading.value = true;
    try {
-      const res:any= await $api.get('/notification-rules/update-delivery-email/' +id)
+      const res:any= await $api.post('/notification-rules/update-delivery-email/' + id, {}) // NEW-8: POST (was GET-CSRF)
 
      const messages= res?.data?.msg || res?.data?.message  || 'Update Filed';
       $toast(messages);
@@ -69,7 +69,7 @@ const updateDeliveryEmail = async (id:any=0) => {
 const updateDeliveryInapp = async (id:any=0) => {
    fullLoading.value = true;
    try {
-      const res:any= await $api.get('/notification-rules/update-delivery-inapp/' + id)
+      const res:any= await $api.post('/notification-rules/update-delivery-inapp/' + id, {}) // NEW-8: POST (was GET-CSRF)
 
      const messages= res?.data?.msg || res?.data?.message  || 'Update Filed';
       $toast(messages);
