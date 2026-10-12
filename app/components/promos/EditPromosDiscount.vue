@@ -193,7 +193,7 @@ const fetchData = async () => {
         plan_ids: planIds.length ? planIds : [ALL_ID],
         expires_at: obj.expiry_date || "",
         max_uses: obj.max_uses || "10",
-        per_user_limit: obj.used_count || "1",
+        per_user_limit: obj.per_user_limit ?? '',   // NEW-172: fill from the real per-user limit, NOT used_count (editing was corrupting it)
         status: obj.status || "1",
         });
     }else{
